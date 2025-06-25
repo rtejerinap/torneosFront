@@ -31,6 +31,7 @@ const AdminLayout = () => {
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
       { label: "Escuelas", path: "/admin/escuelas", icon: <SchoolIcon /> },
       { label: "Roles", path: "/admin/roles", icon: <SecurityIcon /> },
+    { label: "Combates", path: "/admin/combates", icon: <EventIcon /> },
     ],
     usuario: [
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },

@@ -7,35 +7,49 @@ import AdminLayout from "./pages/AdminLayout";
 import Admin from "./pages/Admin"; 
 import AltaMaestro from "./components/Escuelas/AltaMaestro";
 /* import AdminTorneos from "./pages/AdminTorneos";*/
+import CombatesList from "./pages/Combates/CombatesList";
 import Participantes from "./components/Participantes";
 import Tab from "./components/Escuelas/Tab";
 import RolesManager from "./components/admin/RolesManager";
 import ParticipanteDetalle from "./pages/ParticipanteDetalle";
+import CombateLive from "./pages/Combates/CombateLive";
+import CombateLiveWrapper from "./pages/Combates/CombateLiveWrapper";
+import AltaCategoriaCombate from "./pages/Torneos/AltaCategoriaCombate";
+import Torneos from "./pages/Torneos/Torneos"; 
+import ParticipantesPorCategoria from "./pages/Torneos/ParticipantesPorCategoria";
+
+
 const App = () => {
   return (
     <BrowserRouter>
       <Navbar />
-      <Routes>
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<Inicio />} />
-          <Route path="/inscribirse" element={<Inscribirse />} />
-          <Route path="/participante/:id" element={<ParticipanteDetalle />} />
+ <Routes>
+  <Route element={<MainLayout />}>
+    <Route path="/" element={<Inicio />} />
+    <Route path="/inscribirse" element={<Inscribirse />} />
+    <Route path="/participante/:id" element={<ParticipanteDetalle />} />
+  </Route>
 
-        </Route>
+  {/* Ruta pública para abrir desde nueva pestaña */}
+  <Route path="/combate-live" element={<CombateLiveWrapper />} />
 
-        {/* Admin layout con subrutas */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Admin />} />
-       {/*    <Route path="torneos" element={<AdminTorneos />} />*/}
-          <Route path="participantes" element={<Participantes />} /> 
-          <Route path="/admin/alta-maestro" element={<AltaMaestro />} />
-          <Route path="/admin/escuelas" element={<Tab/>} />
-          <Route path="roles" element={<RolesManager />} /> {/* 👈 Nueva ruta */}
+  {/* Admin layout con subrutas */}
+  <Route path="/admin" element={<AdminLayout />}>
+    <Route index element={<Admin />} />
+    <Route path="participantes" element={<Participantes />} />
+    <Route path="alta-maestro" element={<AltaMaestro />} />
+    <Route path="escuelas" element={<Tab />} />
+    <Route path="roles" element={<RolesManager />} />
+    <Route path="combates" element={<CombatesList />} />
+    <Route path="torneos" element={<Torneos />} />
+    <Route path="participantes-por-categoria" element={<ParticipantesPorCategoria />} />
+    {/* Aquí podrías agregar más rutas de admin según sea necesario */}
+    <Route path="alta-categoria-combate" element={<AltaCategoriaCombate />} />
+    {/* Esta podrías incluso eliminarla si solo usás la ruta sin params */}
+    <Route path="combate-live/:combateId" element={<CombateLive combateId="..." nombreRojo="..." nombreAzul="..." />} />
+  </Route>
+</Routes>
 
-
-
-        </Route>
-      </Routes>
     </BrowserRouter>
   );
 };

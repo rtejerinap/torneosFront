@@ -58,34 +58,63 @@ const ParticipanteDetalle = () => {
   if (!participante) return <Typography align="center" mt={4}>Participante no encontrado</Typography>;
 
   return (
-    <Box sx={{ maxWidth: 600, mx: "auto", mt: 4 }}>
-      <Paper elevation={3} sx={{ p: 3 }}>
-        <Typography variant="h5" gutterBottom>
-          Información del Participante
+    <Box
+      sx={{
+        maxWidth: 600,
+        mx: "auto",
+        mt: 4,
+        bgcolor: "#2c2c2c",
+        borderRadius: 2,
+        overflow: "hidden",
+        boxShadow: 3,
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      {/* Cabecera con logo */}
+      <Box sx={{ bgcolor: "#000", textAlign: "center", p: 2 }}>
+        <img
+          src="/logo.png"
+          alt="Logo"
+          style={{
+            maxWidth: "100%",
+            maxHeight: 80,
+            height: "auto",
+            objectFit: "contain",
+          }}
+        />
+      </Box>
+  
+      {/* Contenido blanco con los datos */}
+      <Box sx={{ bgcolor: "#fff", color: "#000", textAlign: "center", p: 3 }}>
+        <Typography variant="h3" gutterBottom>
+          Participante
         </Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={1}>
-          <Grid item xs={12}><strong>Nombre:</strong> {participante.nombre} {participante.apellido}</Grid>
-          <Grid item xs={12}><strong>Documento:</strong> {participante.documento}</Grid>
-          <Grid item xs={12}><strong>Fecha de Nacimiento:</strong> {participante.fechaNacimiento}</Grid>
-          <Grid item xs={12}><strong>Cinturón:</strong> {participante.cinturon}</Grid>
-          <Grid item xs={12}><strong>Peso:</strong> {participante.peso} kg</Grid>
-          <Grid item xs={12}><strong>Torneo:</strong> {torneoNombre}</Grid>
-          <Grid item xs={12}><strong>Escuela:</strong> {escuelaNombre}</Grid>
-          <Grid item xs={12}><strong>Instructor:</strong> {instructorNombre || "No especificado"}</Grid>
-          <Grid item xs={12}><strong>Maestro:</strong> {maestroNombre || "No especificado"}</Grid>
-          <Grid item xs={12}><strong>Modalidades:</strong> {[ 
+        <Typography variant="h5" gutterBottom>
+          Torneo: {torneoNombre}
+        </Typography>
+  
+        <Typography fontSize={18}>Nombre: {participante.nombre} {participante.apellido}</Typography>
+        <Typography fontSize={18}>Documento: {participante.documento}</Typography>
+        <Typography fontSize={18}>Fecha de Nacimiento: {participante.fechaNacimiento}</Typography>
+        <Typography fontSize={18}>Cinturón: {participante.cinturon}</Typography>
+        <Typography fontSize={18}>Peso: {participante.peso} kg</Typography>
+        <Typography fontSize={18}>Escuela: {escuelaNombre}</Typography>
+        <Typography fontSize={18}>Instructor: {instructorNombre || "No especificado"}</Typography>
+        <Typography fontSize={18}>Maestro: {maestroNombre || "No especificado"}</Typography>
+        <Typography fontSize={18}>
+          Modalidades: {[ 
             participante.tul && "Tul",
             participante.lucha && "Lucha",
             participante.equipos && "Equipos",
             participante.coach && "Coach",
             participante.arbitro && "Árbitro",
             participante.autoridad_mesa && "Autoridad Mesa"
-          ].filter(Boolean).join(", ") || "Ninguna"}</Grid>
-        </Grid>
-      </Paper>
+          ].filter(Boolean).join(", ") || "Ninguna"}
+        </Typography>
+      </Box>
     </Box>
   );
+  
 };
 
 export default ParticipanteDetalle;

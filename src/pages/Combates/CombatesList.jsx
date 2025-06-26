@@ -99,6 +99,7 @@ const CombatesList = () => {
               <th>Rojo</th>
               <th>Azul</th>
               <th>Hora Planificada</th>
+              <th>Rounds</th>
               <th>Estado</th>
               <th>Tiempo</th>
               <th>Resultado</th>
@@ -119,6 +120,7 @@ const CombatesList = () => {
                   <td>{combate.participante_rojo?.nombre}</td>
                   <td>{combate.participante_azul?.nombre}</td>
                   <td>{hora}</td>
+                  <td>{combate.cantidad_de_rounds}</td>
                   <td>{combate.estado}</td>
                   <td>{resultado.tiempo}</td>
                   <td>{resultado.rojo} - {resultado.azul}</td>

@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import { Box, Typography, CircularProgress, Paper, Divider, Grid } from "@mui/material";
 
-const API_BASE = "https://us-central1-torneos-305d7.cloudfunctions.net/api";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 const ParticipanteDetalle = () => {
   const { id } = useParams();

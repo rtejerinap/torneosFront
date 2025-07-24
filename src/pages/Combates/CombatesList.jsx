@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+const API_BASE = import.meta.env.VITE_API_URL;
+
 
 const CombatesList = () => {
   const [combates, setCombates] = useState([]);
@@ -11,7 +13,7 @@ const CombatesList = () => {
       try {
         setLoading(true);
         const query = estadoFiltro !== 'todos' ? `?estado=${estadoFiltro}` : '';
-        const res = await fetch(`https://us-central1-torneos-305d7.cloudfunctions.net/api/combates${query}`);
+const res = await fetch(`${API_BASE}/combates${query}`);
         let data = await res.json();
 
         // Ordenar por categoría.nombre, luego ronda, luego hora_inicio_planificada
@@ -51,8 +53,8 @@ const CombatesList = () => {
     for (const combate of combates) {
       try {
         const [resPuntaje, resEventos] = await Promise.all([
-          fetch(`https://us-central1-torneos-305d7.cloudfunctions.net/api/combates/${combate.id}/resultados`),
-          fetch(`https://us-central1-torneos-305d7.cloudfunctions.net/api/combates/${combate.id}/eventos`)
+fetch(`${API_BASE}/combates/${combate.id}/resultados`),
+fetch(`${API_BASE}/combates/${combate.id}/eventos`)
         ]);
         const puntos = await resPuntaje.json();
         const eventos = await resEventos.json();

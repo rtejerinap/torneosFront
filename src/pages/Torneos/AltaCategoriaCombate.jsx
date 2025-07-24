@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   TextField, Button, MenuItem, Grid, Typography, Box, Divider
 } from '@mui/material';
+const API_BASE = import.meta.env.VITE_API_URL;
 
 const rangoEdades = [
   { label: '5 a 6 años', min: 5, max: 6 },
@@ -77,7 +78,7 @@ const AltaCategoriaCombate = () => {
   useEffect(() => {
     const fetchTorneos = async () => {
       try {
-        const res = await fetch('https://us-central1-torneos-305d7.cloudfunctions.net/api/torneos');
+const res = await fetch(`${API_BASE}/torneos`);
         const data = await res.json();
         setTorneos(data);
       } catch (err) {
@@ -115,7 +116,7 @@ const AltaCategoriaCombate = () => {
     };
 
     try {
-      const res = await fetch('https://us-central1-torneos-305d7.cloudfunctions.net/api/api/categorias', {
+const res = await fetch(`${API_BASE}/api/categorias`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

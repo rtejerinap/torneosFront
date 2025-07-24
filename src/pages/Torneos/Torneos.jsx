@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Tabs, Tab, Box } from '@mui/material';
 import ParticipantesPorCategoria from './ParticipantesPorCategoria';
 //import ListadoTorneos from './ListadoTorneos';
-//import CrearTorneo from './CrearTorneo';
+import AltaTorneo from "./AltaTorneo";
 import AltaCategoriaCombate from './AltaCategoriaCombate';
 import BracketSelector from '../Combates/BracketSelector';
 
@@ -57,12 +57,12 @@ const Torneos = () => {
         </Tabs>
       </Box>
 
-      {/*       <TabPanel value={tabIndex} index={0}>
+{/*   <TabPanel value={tabIndex} index={0}>
         <ListadoTorneos />
-      </TabPanel>
-      <TabPanel value={tabIndex} index={1}>
-        <CrearTorneo />
       </TabPanel> */}
+      <TabPanel value={tabIndex} index={1}>
+        <AltaTorneo />
+      </TabPanel>
       <TabPanel value={tabIndex} index={2}>
         <AltaCategoriaCombate />
       </TabPanel>

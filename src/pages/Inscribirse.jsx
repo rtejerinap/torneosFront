@@ -18,7 +18,7 @@ import {
     DialogContentText,
     DialogTitle,
 } from "@mui/material";
-const API_BASE = "https://us-central1-torneos-305d7.cloudfunctions.net/api";
+const API_BASE = import.meta.env.VITE_API_URL;
 const cinturonesITF = [
     { grado: "10º Gup", nombre: "Blanco", color: "#ffffff" },
     { grado: "9º Gup", nombre: "Blanco punta amarilla", color: "linear-gradient(to right, #ffffff 50%, #f1c40f 50%)" },
@@ -173,7 +173,6 @@ const Inscribirse = () => {
                             >
                                 <MenuItem value="Masculino">Masculino</MenuItem>
                                 <MenuItem value="Femenino">Femenino</MenuItem>
-                                <MenuItem value="Otro">Otro</MenuItem>
                             </TextField>
                         </Grid>
                         <Grid item xs={12} sm={6}>
@@ -251,7 +250,7 @@ const Inscribirse = () => {
                                 sx={{ minWidth: 100 }}
                                 value={form.escuela_id}
                                 onChange={handleChange}
-                                required
+                                
                             >
                                 {escuelas.map((e) => (
                                     <MenuItem key={e.id} value={e.id}>{`${e.nombre}, ${e.ciudad}`}</MenuItem>

@@ -7,11 +7,13 @@ const BracketSelector = () => {
   const [categorias, setCategorias] = useState([]);
   const [torneoId, setTorneoId] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
+  const API_BASE = import.meta.env.VITE_API_URL;
+
 
   useEffect(() => {
     const fetchTorneos = async () => {
       try {
-        const res = await axios.get("https://us-central1-torneos-305d7.cloudfunctions.net/api/torneos");
+        const res = await axios.get(`${API_BASE}/torneos`);
         setTorneos(res.data);
       } catch (err) {
         console.error("Error cargando torneos:", err);
@@ -24,7 +26,7 @@ const BracketSelector = () => {
     const fetchCategorias = async () => {
       if (!torneoId) return;
       try {
-        const res = await axios.get(`https://us-central1-torneos-305d7.cloudfunctions.net/api/api/categorias?torneoId=${torneoId}`);
+        const res = await axios.get(`${API_BASE}/api/categorias?torneoId=${torneoId}`);
         setCategorias(res.data);
       } catch (err) {
         console.error("Error cargando categorías:", err);

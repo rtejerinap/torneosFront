@@ -34,7 +34,7 @@ const AdminLayout = () => {
     { label: "Combates", path: "/admin/combates", icon: <EventIcon /> },
     ],
     usuario: [
-      { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
+     //{ label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
     ],
     coach: [
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
@@ -42,6 +42,8 @@ const AdminLayout = () => {
     ],
     arbitro: [
       { label: "Torneos", path: "/admin/torneos", icon: <EventIcon /> },
+          { label: "Combates", path: "/admin/combates", icon: <EventIcon /> },
+
     ],
     autoridad: [
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },

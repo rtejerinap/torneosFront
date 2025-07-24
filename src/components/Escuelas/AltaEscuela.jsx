@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import axios from "axios";
 
-const API_BASE = "https://us-central1-torneos-305d7.cloudfunctions.net/api";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 const AltaEscuela = () => {
   const [form, setForm] = useState({

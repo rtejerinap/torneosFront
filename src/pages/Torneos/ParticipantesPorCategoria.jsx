@@ -4,7 +4,7 @@ import {
   List, ListItem, ListItemText, Divider
 } from '@mui/material';
 
-const BASE_URL = 'https://us-central1-torneos-305d7.cloudfunctions.net/api/api';
+const API_BASE = import.meta.env.VITE_API_URL;
 
 const ParticipantesPorCategoria = () => {
   const [categorias, setCategorias] = useState([]);
@@ -16,7 +16,7 @@ const ParticipantesPorCategoria = () => {
   useEffect(() => {
     const fetchCategorias = async () => {
       try {
-        const res = await fetch(`${BASE_URL}/categorias`);
+        const res = await fetch(`${API_BASE}/api/categorias`);
         const data = await res.json();
         setCategorias(data);
       } catch (error) {
@@ -34,7 +34,7 @@ const ParticipantesPorCategoria = () => {
     setParticipantes([]);
 
     try {
-      const res = await fetch(`${BASE_URL}/categorias/${id}/participantes`);
+      const res = await fetch(`${API_BASE}/api/categorias/${id}/participantes`);
       const data = await res.json();
       setParticipantes(data);
     } catch (error) {

@@ -15,7 +15,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import LoadingSvg from "/src/components/loader/LoadingSvg";
 
-const API_BASE = "https://us-central1-torneos-305d7.cloudfunctions.net/api";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 const AdminParticipantes = () => {
   const [torneos, setTorneos] = useState([]);

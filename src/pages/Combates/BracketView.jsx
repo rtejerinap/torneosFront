@@ -6,79 +6,81 @@ const BracketView = ({ categoriaId }) => {
   const [combates, setCombates] = useState([]);
   const containerRef = useRef(null);
   const matchRefs = useRef({});
+  const API_BASE = import.meta.env.VITE_API_URL;
 
-useEffect(() => {
-  const fetchCombates = async () => {
-    try {
-      const res = await axios.get(
-        `https://us-central1-torneos-305d7.cloudfunctions.net/api/combates/por-categoria/${categoriaId}`
-      );
 
-      const combatesMap = new Map();
-      const porRonda = {};
+  useEffect(() => {
+    const fetchCombates = async () => {
+      try {
+        const res = await axios.get(
+          `${API_BASE}/combates/por-categoria/${categoriaId}`
+        );
 
-      res.data.forEach((combate) => {
-        combatesMap.set(combate.id, combate);
-        if (!porRonda[combate.ronda]) porRonda[combate.ronda] = [];
-        porRonda[combate.ronda].push(combate);
-      });
+        const combatesMap = new Map();
+        const porRonda = {};
 
-      // Reverso: de qué combates proviene cada uno
-      const hijosPorPadre = {};
-      for (const combate of res.data) {
-        if (combate.siguiente_combate_id) {
-          if (!hijosPorPadre[combate.siguiente_combate_id]) {
-            hijosPorPadre[combate.siguiente_combate_id] = [];
-          }
-          hijosPorPadre[combate.siguiente_combate_id].push(combate.id);
-        }
-      }
-
-      // Encontrar combate final (el que no tiene siguiente_combate_id)
-      const final = res.data.find((c) => !c.siguiente_combate_id);
-      if (!final) {
-        console.error("No se encontró el combate final.");
-        return;
-      }
-
-      // DFS para recorrer hacia atrás y armar orden lógico por ronda
-      const ordenadoPorRonda = {};
-      const visitados = new Set();
-
-      const dfs = (combateId) => {
-        if (visitados.has(combateId)) return;
-        visitados.add(combateId);
-        const combate = combatesMap.get(combateId);
-        if (!combate) return;
-
-        const r = combate.ronda;
-        if (!ordenadoPorRonda[r]) ordenadoPorRonda[r] = [];
-        if (!ordenadoPorRonda[r].some(c => c.id === combate.id)) {
-          ordenadoPorRonda[r].unshift(combate); // insertamos al principio
-        }
-
-        const hijos = hijosPorPadre[combateId] || [];
-        hijos.forEach(dfs);
-      };
-
-      dfs(final.id);
-
-      // Ordenar las rondas numéricamente
-      const ordenFinal = {};
-      Object.keys(ordenadoPorRonda)
-        .sort((a, b) => parseInt(a) - parseInt(b))
-        .forEach((r) => {
-          ordenFinal[r] = ordenadoPorRonda[r];
+        res.data.forEach((combate) => {
+          combatesMap.set(combate.id, combate);
+          if (!porRonda[combate.ronda]) porRonda[combate.ronda] = [];
+          porRonda[combate.ronda].push(combate);
         });
 
-      setCombates(ordenFinal);
-    } catch (err) {
-      console.error("Error al cargar llaves:", err);
-    }
-  };
+        // Reverso: de qué combates proviene cada uno
+        const hijosPorPadre = {};
+        for (const combate of res.data) {
+          if (combate.siguiente_combate_id) {
+            if (!hijosPorPadre[combate.siguiente_combate_id]) {
+              hijosPorPadre[combate.siguiente_combate_id] = [];
+            }
+            hijosPorPadre[combate.siguiente_combate_id].push(combate.id);
+          }
+        }
 
-  fetchCombates();
-}, [categoriaId]);
+        // Encontrar combate final (el que no tiene siguiente_combate_id)
+        const final = res.data.find((c) => !c.siguiente_combate_id);
+        if (!final) {
+          console.error("No se encontró el combate final.");
+          return;
+        }
+
+        // DFS para recorrer hacia atrás y armar orden lógico por ronda
+        const ordenadoPorRonda = {};
+        const visitados = new Set();
+
+        const dfs = (combateId) => {
+          if (visitados.has(combateId)) return;
+          visitados.add(combateId);
+          const combate = combatesMap.get(combateId);
+          if (!combate) return;
+
+          const r = combate.ronda;
+          if (!ordenadoPorRonda[r]) ordenadoPorRonda[r] = [];
+          if (!ordenadoPorRonda[r].some(c => c.id === combate.id)) {
+            ordenadoPorRonda[r].unshift(combate); // insertamos al principio
+          }
+
+          const hijos = hijosPorPadre[combateId] || [];
+          hijos.forEach(dfs);
+        };
+
+        dfs(final.id);
+
+        // Ordenar las rondas numéricamente
+        const ordenFinal = {};
+        Object.keys(ordenadoPorRonda)
+          .sort((a, b) => parseInt(a) - parseInt(b))
+          .forEach((r) => {
+            ordenFinal[r] = ordenadoPorRonda[r];
+          });
+
+        setCombates(ordenFinal);
+      } catch (err) {
+        console.error("Error al cargar llaves:", err);
+      }
+    };
+
+    fetchCombates();
+  }, [categoriaId]);
 
 
   const renderLines = () => {

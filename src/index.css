@@ -23,7 +23,7 @@ html, body, #root {
 
 /* 🔥 CORREGIDO: Ya no centramos el contenido desde el body */
 body {
-  background-color: #f5f5f5;
+  background-color: transparent;
 }
 
 a {
@@ -62,12 +62,26 @@ button:focus-visible {
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #ffffff;
+    background-color: transparent;
   }
   a:hover {
     color: #747bff;
   }
   button {
     background-color: #f9f9f9;
+  }
+}
+/* Fondo oscuro y texto claro para todas las tablas */
+table, thead, tbody, th, td, tr {
+  background-color: #181818 !important;
+  color: #fff !important;
+}
+
+@media (max-width: 900px) {
+  /* Hacemos que la tabla haga scroll horizontal en mobile */
+  .table-responsive {
+    overflow-x: auto;
+    width: 100%;
+    display: block;
   }
 }

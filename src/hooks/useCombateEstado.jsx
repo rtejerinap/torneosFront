@@ -113,15 +113,14 @@ const useCombateEstado = (combateId) => {
         finalizandoRef.current = false;
     }, [roundActual]);
 
-    // 💡 AGREGADO: actualización automática cada 2 segundos
-    useEffect(() => {
-        if (["en_curso", "esperando", "en_pausa", "tiempo_extra"].includes(estadoCombate)) {
-            const intervalo = setInterval(() => {
-                fetchEstadoActual();
-            }, 2000);
-            return () => clearInterval(intervalo);
-        }
-    }, [estadoCombate, fetchEstadoActual]);
+// 🔄 Sincronización automática SIEMPRE (cada 2s)
+useEffect(() => {
+  const intervalo = setInterval(() => {
+    fetchEstadoActual();
+  }, 2000);
+  return () => clearInterval(intervalo);
+}, [fetchEstadoActual]);
+
 
     const enviarEvento = async (tipo, participante, valor, marcaDeTiempoManual) => {
         const marcaDeTiempo = marcaDeTiempoManual || formatTiempo(reloj);

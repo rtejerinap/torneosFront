@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import formatTiempo from '../utils/formatTiempo';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
 const useCombateEstado = (combateId) => {
+    const { perfil } = useAuth();
     const [estadoCombate, setEstadoCombate] = useState('esperando');
     const [roundActual, setRoundActual] = useState(1);
     const [totalRounds, setTotalRounds] = useState(1);
@@ -16,6 +18,8 @@ const useCombateEstado = (combateId) => {
     const [debeFinalizar, setDebeFinalizar] = useState(false);
     const [eventos, setEventos] = useState([]);
     const [puntos, setPuntos] = useState({ rojo: 0, azul: 0 });
+    const [advertencias_rojo, setAdvertenciasRojo] = useState(0);
+    const [advertencias_azul, setAdvertenciasAzul] = useState(0);
 
     const timerRef = useRef(null);
     const finalizandoRef = useRef(false);
@@ -53,6 +57,8 @@ const useCombateEstado = (combateId) => {
             setDebeFinalizar(data.debe_finalizar);
             setEventos(data.eventos);
             setPuntos(data.puntos || { rojo: 0, azul: 0 });
+            setAdvertenciasRojo(typeof data.advertencias_rojo === 'number' ? data.advertencias_rojo : 0);
+            setAdvertenciasAzul(typeof data.advertencias_azul === 'number' ? data.advertencias_azul : 0);
         } catch (error) {
             console.error('Error al obtener el estado actual del combate:', error);
         }
@@ -113,19 +119,21 @@ const useCombateEstado = (combateId) => {
         finalizandoRef.current = false;
     }, [roundActual]);
 
-// 🔄 Sincronización automática SIEMPRE (cada 2s)
+// 🔄 Sincronización automática cada 2s SOLO si el combate NO está cerrado
 useEffect(() => {
+  if (estadoCombate === 'cerrado') return; // No seguir actualizando si está cerrado
   const intervalo = setInterval(() => {
     fetchEstadoActual();
   }, 2000);
   return () => clearInterval(intervalo);
-}, [fetchEstadoActual]);
+}, [fetchEstadoActual, estadoCombate]);
 
 
     const enviarEvento = async (tipo, participante, valor, marcaDeTiempoManual) => {
         const marcaDeTiempo = marcaDeTiempoManual || formatTiempo(reloj);
         const timestampFront = new Date().toISOString();
-        const payload = { tipo, participante, valor, marcaDeTiempo, timestampFront, round: roundActual };
+        const user_name = `${perfil?.nombre ?? ''} ${perfil?.apellido ?? ''}`.trim() || "Sistema";
+        const payload = { tipo, participante, valor, marcaDeTiempo, timestampFront, round: roundActual, user_name };
         console.log(`[FETCH] POST /combates/${combateId}/eventos`, payload);
         try {
             const res = await fetch(`${API_BASE}/combates/${combateId}/eventos`, {
@@ -204,6 +212,8 @@ useEffect(() => {
         fetchEstadoActual,
         eventos,
         puntos,
+        advertencias_rojo,
+        advertencias_azul,
         setEstadoCombate,
         setRoundActual,
         enviarEvento,

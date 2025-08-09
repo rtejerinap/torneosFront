@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getAnalytics } from "firebase/analytics"; // ✅ solo si vas a usar analytics
+// import { getAnalytics } from "firebase/analytics"; // Quitado para evitar errores fuera de Firebase Hosting
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -15,6 +15,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
-const analytics = getAnalytics(app);
+// const analytics = getAnalytics(app); // Quitado para evitar errores fuera de Firebase Hosting
 
-export { auth, googleProvider, analytics };
+export { auth, googleProvider };

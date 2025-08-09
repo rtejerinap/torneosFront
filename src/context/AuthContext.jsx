@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, googleProvider } from "../firebase";
-import { signInWithRedirect , signOut, onAuthStateChanged, getRedirectResult } from "firebase/auth";
+import { signInWithPopup , signOut, onAuthStateChanged, getRedirectResult } from "firebase/auth";
 import axios from "axios";
 const API_BASE = import.meta.env.VITE_API_URL;
 
@@ -56,7 +56,7 @@ export const AuthProvider = ({ children }) => {
   const [datosPendientes, setDatosPendientes] = useState(null);
 
 
-  const loginConGoogle = () => signInWithRedirect(auth, googleProvider);
+  const loginConGoogle = () => signInWithPopup(auth, googleProvider);
 
   const cerrarSesion = async () => {
     await signOut(auth);

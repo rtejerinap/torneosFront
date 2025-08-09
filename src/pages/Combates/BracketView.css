@@ -1,52 +1,118 @@
+@media (max-width: 700px) {
+  .bracket-wrapper {
+    padding: 8px;
+    font-size: 0.95em;
+    min-width: 320px;
+    overflow-x: auto;
+  }
+  .bracket-dynamic-container {
+    margin: 4px;
+    min-width: 600px;
+  }
+  .bracket-match {
+    min-width: 160px;
+    max-width: 98vw;
+    font-size: 0.95em;
+  }
+  .match-number-wrapper {
+    width: 28px;
+    font-size: 1em;
+    padding: 0 2px;
+  }
+  .bracket-part {
+    padding: 6px 4px;
+    font-size: 0.95em;
+  }
+  .bracket-svg {
+    min-width: 600px;
+  }
+}
 .bracket-wrapper {
-  position: relative;
-  overflow-x: auto;
-  padding: 1rem;
+  padding: 40px;
+  background-color: #1e1e1e;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: auto;
+  color: #f0f0f0;
 }
 
-.bracket-container {
-  display: flex;
-  gap: 30px;
+.bracket-dynamic-container {
   position: relative;
-  z-index: 1;
+  margin: 20px;
 }
 
 .bracket-svg {
   position: absolute;
   top: 0;
   left: 0;
-  height: 100%;
   width: 100%;
+  height: 100%;
   pointer-events: none;
-  z-index: 0;
-}
-
-.bracket-column {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 200px;
+  z-index: 1;
 }
 
 .bracket-match {
-  border: 1px solid #ccc;
-  background: #fff;
-  margin: 30px 0;
-  padding: 0.5rem;
-  width: 160px;
-  height: 60px;
-  text-align: center;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  position: relative;
+  display: flex;
+  flex-direction: row;
+  background-color: #2d2d2d;
+  border-radius: 3px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  border: 1px solid #444;
+  z-index: 2;
+}
+
+.match-number-wrapper {
+  width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #444;
+  font-weight: 700;
+  font-size: 1.1em;
+  color: #aaa;
+  background: rgba(0,0,0,0.10);
+}
+
+.match-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .bracket-part {
-  padding: 2px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  flex-grow: 1;
+  color: #ddd;
+  font-size: 1em;
+  font-weight: 500;
+  overflow: hidden;
+}
+
+.bracket-part .apellido {
+  font-size: 0.85em;
+  color: #aaa;
+  margin-top: 2px;
+}
+
+.bracket-part:first-child {
+  border-bottom: 1px solid #444;
+}
+
+.vacant {
+  color: #666;
+  font-style: italic;
 }
 
 .bye-text {
-  font-size: 0.8rem;
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
   color: #888;
-  margin-top: 4px;
+  font-size: 0.8em;
+  background-color: #1e1e1e;
+  padding: 0 5px;
 }

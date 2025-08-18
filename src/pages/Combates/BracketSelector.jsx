@@ -2,13 +2,15 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import BracketView from "./BracketView"; // el componente de llaves generado antes
 
+
 const BracketSelector = () => {
   const [torneos, setTorneos] = useState([]);
   const [categorias, setCategorias] = useState([]);
+  const [llaves, setLlaves] = useState([]);
   const [torneoId, setTorneoId] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
+  const [llaveId, setLlaveId] = useState("");
   const API_BASE = import.meta.env.VITE_API_URL;
-
 
   useEffect(() => {
     const fetchTorneos = async () => {
@@ -33,7 +35,30 @@ const BracketSelector = () => {
       }
     };
     fetchCategorias();
+    setCategoriaId("");
+    setLlaves([]);
+    setLlaveId("");
   }, [torneoId]);
+
+  useEffect(() => {
+    const fetchLlaves = async () => {
+      if (!categoriaId) {
+        setLlaves([]);
+        setLlaveId("");
+        return;
+      }
+      try {
+        const res = await axios.get(`${API_BASE}/combates/llaves-por-categoria/${categoriaId}`);
+        setLlaves(res.data);
+        setLlaveId("");
+      } catch (err) {
+        console.error("Error cargando llaves:", err);
+        setLlaves([]);
+        setLlaveId("");
+      }
+    };
+    fetchLlaves();
+  }, [categoriaId]);
 
   return (
     <div className="p-4">
@@ -46,7 +71,6 @@ const BracketSelector = () => {
           value={torneoId}
           onChange={(e) => {
             setTorneoId(e.target.value);
-            setCategoriaId("");
           }}
         >
           <option value="">-- Seleccioná un torneo --</option>
@@ -72,7 +96,23 @@ const BracketSelector = () => {
         </div>
       )}
 
-      {categoriaId && <BracketView categoriaId={categoriaId} />}
+      {(!!categoriaId && llaves && llaves.length > 0) && (
+        <div className="mb-4">
+          <label className="block mb-1">Seleccionar llave:</label>
+          <select
+            className="border rounded px-2 py-1 w-full"
+            value={llaveId}
+            onChange={(e) => setLlaveId(e.target.value)}
+          >
+            <option value="">-- Seleccioná una llave --</option>
+            {llaves.map((l) => (
+              <option key={l.id} value={l.id}>{l.nombre || `Llave #${l.id}`}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {llaveId && <BracketView llaveId={llaveId} />}
     </div>
   );
 };

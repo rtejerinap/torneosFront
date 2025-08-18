@@ -48,6 +48,9 @@ const AdminLayout = () => {
     autoridad: [
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
     ],
+        maestro: [
+      { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
+    ],
   };
 
   const menuItems = (roles || [])

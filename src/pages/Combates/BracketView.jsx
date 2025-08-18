@@ -6,7 +6,8 @@ const MATCH_HEIGHT = 110; // Alto de la caja del combate + gap vertical
 const MATCH_WIDTH = 220;  // Ancho de la caja del combate
 const ROUND_GAP = 160;    // Espacio horizontal entre rondas (aumentado para mayor claridad)
 
-const BracketView = ({ categoriaId }) => {
+
+const BracketView = ({ llaveId }) => {
   const [combatesPorRonda, setCombatesPorRonda] = useState({});
   const [matchPositions, setMatchPositions] = useState({});
   const [lines, setLines] = useState([]);
@@ -14,17 +15,17 @@ const BracketView = ({ categoriaId }) => {
   const API_BASE = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
-    // Resetear todo cuando cambia la categoría
+    // Resetear todo cuando cambia la llave
     setCombatesPorRonda({});
     setMatchPositions({});
     setLines([]);
-  }, [categoriaId]);
+  }, [llaveId]);
 
   useEffect(() => {
     const fetchAndProcessCombates = async () => {
-      if (!categoriaId) return;
+      if (!llaveId) return;
       try {
-        const res = await axios.get(`${API_BASE}/combates/por-categoria/${categoriaId}`);
+        const res = await axios.get(`${API_BASE}/combates/por-llave/${llaveId}`);
         const allCombates = res.data;
         if (allCombates.length === 0) return;
 
@@ -43,7 +44,7 @@ const BracketView = ({ categoriaId }) => {
       }
     };
     fetchAndProcessCombates();
-  }, [categoriaId, API_BASE]);
+  }, [llaveId, API_BASE]);
 
   useLayoutEffect(() => {
     if (Object.keys(combatesPorRonda).length === 0) return;

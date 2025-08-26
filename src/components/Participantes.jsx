@@ -24,8 +24,20 @@ const AdminParticipantes = () => {
   const [instructores, setInstructores] = useState([]);
   const [maestros, setMaestros] = useState([]);
   const [participantes, setParticipantes] = useState([]);
+  const [participantesRaw, setParticipantesRaw] = useState([]); // para filtrar en frontend
   const [pagados, setPagados] = useState({});
-  const [filtros, setFiltros] = useState({ torneoId: "", escuelaId: "", instructorId: "", maestroId: "" });
+  const [filtros, setFiltros] = useState({
+    torneoId: "",
+    escuelaId: "",
+    instructorId: "",
+    maestroId: "",
+    tul: "",
+    lucha: "",
+    equipos: "",
+    coach: "",
+    arbitro: "",
+    autoridad_mesa: ""
+  });
   const [modalOpen, setModalOpen] = useState(false);
   const [detalle, setDetalle] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -50,12 +62,38 @@ const AdminParticipantes = () => {
     fetchData();
   }, []);
 
+  // Filtros booleanos se aplican en tiempo real
   const handleChange = (e) => {
-    setFiltros((f) => ({ ...f, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setFiltros((f) => {
+      const nuevos = { ...f, [name]: value };
+      // Si es filtro booleano, filtrar en frontend
+      if (["tul","lucha","equipos","coach","arbitro","autoridad_mesa"].includes(name)) {
+        aplicarFiltrosBooleanos(nuevos);
+      }
+      return nuevos;
+    });
+  };
+
+  // Aplica los filtros booleanos sobre participantesRaw
+  const aplicarFiltrosBooleanos = (filtrosActuales) => {
+    let filtrados = participantesRaw;
+    const { tul, lucha, equipos, coach, arbitro, autoridad_mesa } = filtrosActuales;
+    const boolFields = { tul, lucha, equipos, coach, arbitro, autoridad_mesa };
+    Object.entries(boolFields).forEach(([key, value]) => {
+      if (value !== "") {
+        filtrados = filtrados.filter(p => Boolean(p[key]) === (value === "true"));
+      }
+    });
+    setParticipantes(filtrados);
+    setPagados(filtrados.reduce((acc, p) => {
+      acc[p.id] = p.pagado || false;
+      return acc;
+    }, {}));
   };
 
   const buscarParticipantes = async () => {
-    const { torneoId, escuelaId, instructorId, maestroId } = filtros;
+    const { torneoId, escuelaId, instructorId, maestroId, tul, lucha, equipos, coach, arbitro, autoridad_mesa } = filtros;
     if (!torneoId) return;
 
     let url = '';
@@ -72,8 +110,17 @@ const AdminParticipantes = () => {
     try {
       setLoading(true);
       const res = await axios.get(url);
-      setParticipantes(res.data);
-      setPagados(res.data.reduce((acc, p) => {
+      setParticipantesRaw(res.data);
+      // Aplica los filtros booleanos actuales
+      let filtrados = res.data;
+      const boolFields = { tul, lucha, equipos, coach, arbitro, autoridad_mesa };
+      Object.entries(boolFields).forEach(([key, value]) => {
+        if (value !== "") {
+          filtrados = filtrados.filter(p => Boolean(p[key]) === (value === "true"));
+        }
+      });
+      setParticipantes(filtrados);
+      setPagados(filtrados.reduce((acc, p) => {
         acc[p.id] = p.pagado || false;
         return acc;
       }, {}));
@@ -191,6 +238,44 @@ const AdminParticipantes = () => {
     { field: "documento", headerName: "Documento", flex: 1 },
     { field: "peso", headerName: "Peso (kg)", flex: 1 },
     { field: "cinturon", headerName: "Cinturón", flex: 1 },
+    { field: "otroInstructor", headerName: "Otro Instructor", flex: 1 },
+    { field: "otroMaestro", headerName: "Otro Maestro", flex: 1 },
+    {
+      field: "tul",
+      headerName: "Tul",
+      flex: 0.5,
+      renderCell: (params) => params.row.tul ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
+    },
+    {
+      field: "lucha",
+      headerName: "Lucha",
+      flex: 0.5,
+      renderCell: (params) => params.row.lucha ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
+    },
+    {
+      field: "equipos",
+      headerName: "Equipos",
+      flex: 0.5,
+      renderCell: (params) => params.row.equipos ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
+    },
+    {
+      field: "coach",
+      headerName: "Coach",
+      flex: 0.5,
+      renderCell: (params) => params.row.coach ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
+    },
+    {
+      field: "arbitro",
+      headerName: "Árbitro",
+      flex: 0.5,
+      renderCell: (params) => params.row.arbitro ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
+    },
+    {
+      field: "autoridad_mesa",
+      headerName: "Mesa",
+      flex: 0.5,
+      renderCell: (params) => params.row.autoridad_mesa ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
+    },
     {
       field: "pagado",
       headerName: (
@@ -334,7 +419,24 @@ const AdminParticipantes = () => {
       <Typography variant="h5" gutterBottom>
         Gestión de Participantes
       </Typography>
-      <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
+  <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
+        {/* Filtros para campos booleanos */}
+        {["tul", "lucha", "equipos", "coach", "arbitro", "autoridad_mesa"].map((campo) => (
+          <Grid item xs={12} sm={2} key={campo}>
+            <TextField
+              select
+              fullWidth
+              name={campo}
+              label={campo.charAt(0).toUpperCase() + campo.slice(1)}
+              value={filtros[campo]}
+              onChange={handleChange}
+            >
+              <MenuItem value="">Todos</MenuItem>
+              <MenuItem value="true">✔️</MenuItem>
+              <MenuItem value="false">❌</MenuItem>
+            </TextField>
+          </Grid>
+        ))}
         <Grid item xs={12} sm={4}>
           <TextField
             select

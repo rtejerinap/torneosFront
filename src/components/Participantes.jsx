@@ -10,6 +10,7 @@ import {
   Paper,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import axios from "axios";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -57,19 +58,15 @@ const AdminParticipantes = () => {
     const { torneoId, escuelaId, instructorId, maestroId } = filtros;
     if (!torneoId) return;
 
-    const filtrosSeleccionados = [escuelaId, instructorId, maestroId].filter(Boolean);
-    if (filtrosSeleccionados.length !== 1) {
-      alert("Seleccioná solo uno entre escuela, instructor o maestro para filtrar");
-      return;
-    }
-
-    let url = "";
+    let url = '';
     if (escuelaId) {
       url = `${API_BASE}/participantes/torneo/${torneoId}/escuela/${escuelaId}`;
     } else if (instructorId) {
       url = `${API_BASE}/participantes/torneo/${torneoId}/instructor/${instructorId}`;
     } else if (maestroId) {
       url = `${API_BASE}/participantes/torneo/${torneoId}/maestro/${maestroId}`;
+    } else {
+      url = `${API_BASE}/participantes/torneo/${torneoId}`;
     }
 
     try {
@@ -218,15 +215,16 @@ const AdminParticipantes = () => {
     },
     {
       field: "ver",
-      headerName: "Ver Detalles",
+      headerName: "Acciones",
       flex: 1,
       renderCell: (params) => (
         <Button
           variant="outlined"
           size="small"
           onClick={() => abrirModal(params.row)}
+          sx={{ minWidth: 0, p: 1 }}
         >
-          Ver
+          <VisibilityIcon fontSize="medium" />
         </Button>
       ),
     },
@@ -275,17 +273,17 @@ const AdminParticipantes = () => {
       const contentStartY = logoHeight + 20;
       doc.setFillColor(255, 255, 255);
       doc.rect(10, contentStartY, pageWidth - 20, pageHeight - contentStartY - 10, "F");
-// Título principal: Torneo
-const torneoNombre = torneos.find(t => t.id === filtros.torneoId)?.nombre || "Torneo";
-doc.setFontSize(30);
-doc.setFont("helvetica", "bold");
-doc.text(torneoNombre, pageWidth / 2, contentStartY + 15, { align: "center" });
 
-// Subtítulo: Participante
-doc.setFontSize(35);
-doc.setFont("helvetica", "bold");
-doc.text("Participante", pageWidth / 2, contentStartY + 30, { align: "center" });
+      // Título principal: Torneo
+      const torneoNombre = torneos.find(t => t.id === filtros.torneoId)?.nombre || "Torneo";
+      doc.setFontSize(30);
+      doc.setFont("helvetica", "bold");
+      doc.text(torneoNombre, pageWidth / 2, contentStartY + 15, { align: "center" });
 
+      // Subtítulo: Participante
+      doc.setFontSize(35);
+      doc.setFont("helvetica", "bold");
+      doc.text("Participante", pageWidth / 2, contentStartY + 30, { align: "center" });
 
       const data = [
         `Nombre: ${participante.nombre}`,

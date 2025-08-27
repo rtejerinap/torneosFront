@@ -36,7 +36,8 @@ const AdminParticipantes = () => {
     equipos: "",
     coach: "",
     arbitro: "",
-    autoridad_mesa: ""
+    autoridad_mesa: "",
+    soloMaestros: ""
   });
   const [modalOpen, setModalOpen] = useState(false);
   const [detalle, setDetalle] = useState(null);
@@ -67,8 +68,8 @@ const AdminParticipantes = () => {
     const { name, value } = e.target;
     setFiltros((f) => {
       const nuevos = { ...f, [name]: value };
-      // Si es filtro booleano, filtrar en frontend
-      if (["tul","lucha","equipos","coach","arbitro","autoridad_mesa"].includes(name)) {
+      // Si es filtro booleano o soloMaestros, filtrar en frontend
+      if (["tul","lucha","equipos","coach","arbitro","autoridad_mesa","soloMaestros"].includes(name)) {
         aplicarFiltrosBooleanos(nuevos);
       }
       return nuevos;
@@ -78,13 +79,24 @@ const AdminParticipantes = () => {
   // Aplica los filtros booleanos sobre participantesRaw
   const aplicarFiltrosBooleanos = (filtrosActuales) => {
     let filtrados = participantesRaw;
-    const { tul, lucha, equipos, coach, arbitro, autoridad_mesa } = filtrosActuales;
+    const { tul, lucha, equipos, coach, arbitro, autoridad_mesa, soloMaestros } = filtrosActuales;
     const boolFields = { tul, lucha, equipos, coach, arbitro, autoridad_mesa };
     Object.entries(boolFields).forEach(([key, value]) => {
       if (value !== "") {
         filtrados = filtrados.filter(p => Boolean(p[key]) === (value === "true"));
       }
     });
+    // Filtro de solo maestros: solo los que tienen cinturón exactamente igual a 7º Dan - Negro, 8º Dan - Negro o 9º Dan - Negro
+    if (soloMaestros === "true") {
+      const maestrosValidos = [
+        "7º Dan - Negro",
+        "8º Dan - Negro",
+        "9º Dan - Negro"
+      ];
+      filtrados = filtrados.filter(p =>
+        typeof p.cinturon === "string" && maestrosValidos.includes(p.cinturon.trim())
+      );
+    }
     setParticipantes(filtrados);
     setPagados(filtrados.reduce((acc, p) => {
       acc[p.id] = p.pagado || false;
@@ -419,30 +431,13 @@ const AdminParticipantes = () => {
       <Typography variant="h5" gutterBottom>
         Gestión de Participantes
       </Typography>
-  <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-        {/* Filtros para campos booleanos */}
-        {["tul", "lucha", "equipos", "coach", "arbitro", "autoridad_mesa"].map((campo) => (
-          <Grid item xs={12} sm={2} key={campo}>
-            <TextField
-              select
-              fullWidth
-              name={campo}
-              label={campo.charAt(0).toUpperCase() + campo.slice(1)}
-              value={filtros[campo]}
-              onChange={handleChange}
-            >
-              <MenuItem value="">Todos</MenuItem>
-              <MenuItem value="true">✔️</MenuItem>
-              <MenuItem value="false">❌</MenuItem>
-            </TextField>
-          </Grid>
-        ))}
+      {/* Filtros principales */}
+      <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
         <Grid item xs={12} sm={4}>
           <TextField
             select
             fullWidth
             sx={{ minWidth: 100 }}
-
             name="torneoId"
             label="Torneo"
             value={filtros.torneoId}
@@ -460,7 +455,6 @@ const AdminParticipantes = () => {
             select
             fullWidth
             sx={{ minWidth: 100 }}
-
             name="escuelaId"
             label="Escuela"
             value={filtros.escuelaId}
@@ -480,7 +474,6 @@ const AdminParticipantes = () => {
             select
             fullWidth
             sx={{ minWidth: 100 }}
-
             name="instructorId"
             label="Instructor"
             value={filtros.instructorId}
@@ -500,7 +493,6 @@ const AdminParticipantes = () => {
             select
             fullWidth
             sx={{ minWidth: 100 }}
-
             name="maestroId"
             label="Maestro"
             value={filtros.maestroId}
@@ -548,10 +540,48 @@ const AdminParticipantes = () => {
           </Button>
         </Grid>
       </Grid>
+      {/* Sección de deuda */}
       <Box sx={{ mb: 2 }}>
         <Typography>Total a cobrar: ${totalACobrar}</Typography>
         <Typography>Total cobrado: ${totalCobrado}</Typography>
         <Typography>Deuda: ${deuda}</Typography>
+      </Box>
+      {/* Filtros booleanos en un renglón aparte debajo de la deuda */}
+      <Box sx={{ mb: 2, mt: 1 }}>
+        <Grid container spacing={2} alignItems="center">
+          {["tul", "lucha", "equipos", "coach", "arbitro", "autoridad_mesa"].map((campo) => (
+            <Grid item xs={12} sm={2} key={campo}>
+              <TextField
+                select
+                fullWidth
+                sx={{ minWidth: 150 }}
+                name={campo}
+                label={campo.charAt(0).toUpperCase() + campo.slice(1)}
+                value={filtros[campo]}
+                onChange={handleChange}
+              >
+                <MenuItem value="">Todos</MenuItem>
+                <MenuItem value="true">✔️</MenuItem>
+                <MenuItem value="false">❌</MenuItem>
+              </TextField>
+            </Grid>
+          ))}
+          {/* Filtro solo maestros */}
+          <Grid item xs={12} sm={2} key="soloMaestros">
+            <TextField
+              select
+              fullWidth
+              sx={{ minWidth: 120 }}
+              name="soloMaestros"
+              label="Solo Maestros"
+              value={filtros.soloMaestros}
+              onChange={handleChange}
+            >
+              <MenuItem value="">Todos</MenuItem>
+              <MenuItem value="true">Solo Maestros</MenuItem>
+            </TextField>
+          </Grid>
+        </Grid>
       </Box>
       <Paper sx={{ height: 500 }}>
         <DataGrid

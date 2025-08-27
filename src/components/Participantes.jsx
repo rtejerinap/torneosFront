@@ -145,14 +145,6 @@ const AdminParticipantes = () => {
 
   const exportarPDF = () => {
     const torneo = torneos.find(t => t.id === filtros.torneoId)?.nombre || "Torneo";
-    const filtroTexto = filtros.escuelaId
-      ? `Escuela: ${escuelas.find(e => e.id === filtros.escuelaId)?.nombre || filtros.escuelaId}`
-      : filtros.instructorId
-        ? `Instructor: ${instructores.find(i => i.id === filtros.instructorId)?.nombre || filtros.instructorId}`
-        : filtros.maestroId
-          ? `Maestro: ${maestros.find(m => m.id === filtros.maestroId)?.nombre || filtros.maestroId}`
-          : "";
-
     const total = participantes.length;
     const precio = torneos.find(t => t.id === filtros.torneoId)?.precio || 0;
     const totalPagado = participantes.filter(p => pagados[p.id]).length;
@@ -160,20 +152,69 @@ const AdminParticipantes = () => {
     const totalACobrar = total * precio;
     const deuda = totalACobrar - totalCobrado;
 
-    const doc = new jsPDF();
+    // Construir texto de filtros aplicados
+    const filtrosAplicados = [];
+    if (filtros.torneoId) filtrosAplicados.push(`Torneo: ${torneo}`);
+    if (filtros.escuelaId) {
+      const esc = escuelas.find(e => e.id === filtros.escuelaId);
+      filtrosAplicados.push(`Escuela: ${esc ? esc.nombre + ', ' + esc.ciudad : filtros.escuelaId}`);
+    }
+    if (filtros.instructorId) {
+      const inst = instructores.find(i => i.id === filtros.instructorId);
+      filtrosAplicados.push(`Instructor: ${inst ? inst.nombre + ' ' + inst.apellido : filtros.instructorId}`);
+    }
+    if (filtros.maestroId) {
+      const ma = maestros.find(m => m.id === filtros.maestroId);
+      filtrosAplicados.push(`Maestro: ${ma ? ma.nombre + ' ' + ma.apellido : filtros.maestroId}`);
+    }
+    ["tul","lucha","equipos","coach","arbitro","autoridad_mesa"].forEach(campo => {
+      if (filtros[campo] === "true") filtrosAplicados.push(`${campo.charAt(0).toUpperCase() + campo.slice(1)}: ✔️`);
+      if (filtros[campo] === "false") filtrosAplicados.push(`${campo.charAt(0).toUpperCase() + campo.slice(1)}: ❌`);
+    });
+    if (filtros.soloMaestros === "true") filtrosAplicados.push("Solo Maestros: Sí");
 
+    // Columnas igual que la tabla, sin acciones
+    const columnasPDF = [
+      "Nombre", "Apellido", "Documento", "Peso (kg)", "Cinturón", "Otro Instructor", "Otro Maestro",
+      "Tul", "Lucha", "Equipos", "Coach", "Árbitro", "Mesa", "Pagado"
+    ];
+    const bodyPDF = participantes.map((p) => [
+      p.nombre,
+      p.apellido,
+      p.documento,
+      p.peso,
+      p.cinturon,
+      p.otroInstructor,
+      p.otroMaestro,
+      p.tul ? "Sí" : "No",
+      p.lucha ? "Sí" : "No",
+      p.equipos ? "Sí" : "No",
+      p.coach ? "Sí" : "No",
+      p.arbitro ? "Sí" : "No",
+      p.autoridad_mesa ? "Sí" : "No",
+      pagados[p.id] ? "Sí" : "No"
+    ]);
+
+    const doc = new jsPDF({ orientation: "landscape" });
     const logo = new Image();
-    logo.src = "/logo.png"; // logo en public/
+    logo.src = "/logo.png";
 
     logo.onload = () => {
       const totalPagesExp = "{total_pages_count_string}";
-
       const pageContent = function (data) {
         doc.addImage(logo, 'PNG', 10, 8, 20, 20);
-        doc.setFontSize(10);
+        doc.setFontSize(12);
         doc.text(`Participantes - ${torneo}`, 35, 15);
-        if (filtroTexto) doc.text(filtroTexto, 35, 23);
-
+        // Filtros aplicados, ordenados y claros
+        if (filtrosAplicados.length > 0) {
+          doc.setFontSize(10);
+          let y = 23;
+          filtrosAplicados.forEach(f => {
+            doc.text(f, 35, y);
+            y += 6;
+          });
+        }
+        // Página
         const str = `Página ${doc.internal.getNumberOfPages()}` + (typeof doc.putTotalPages === 'function' ? ` de ${totalPagesExp}` : '');
         doc.setFontSize(10);
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
@@ -182,26 +223,21 @@ const AdminParticipantes = () => {
 
       autoTable(doc, {
         margin: { top: 40 },
-        head: [["Nombre", "Apellido", "Documento", "Peso", "Cinturón", "Pagado"]],
-        body: participantes.map((p) => [
-          p.nombre,
-          p.apellido,
-          p.documento,
-          `${p.peso} kg`,
-          p.cinturon,
-          pagados[p.id] ? "Sí" : "No",
-        ]),
-        styles: { fontSize: 10 },
+        head: [columnasPDF],
+        body: bodyPDF,
+        styles: { fontSize: 9 },
         headStyles: { fillColor: [22, 160, 133] },
         didDrawPage: pageContent,
       });
 
+      // Totales en un solo renglón
       const finalY = doc.lastAutoTable.finalY || 40;
-      doc.setFontSize(12);
-      doc.text(`Total participantes: ${total}`, 14, finalY + 10);
-      doc.text(`Total a cobrar: $${totalACobrar}`, 14, finalY + 20);
-      doc.text(`Total cobrado: $${totalCobrado}`, 14, finalY + 30);
-      doc.text(`Deuda: $${deuda}`, 14, finalY + 40);
+      doc.setFontSize(11);
+      doc.text(
+        `Total participantes: ${total}   |   Total a cobrar: $${totalACobrar}   |   Total cobrado: $${totalCobrado}   |   Deuda: $${deuda}`,
+        14,
+        finalY + 12
+      );
 
       if (typeof doc.putTotalPages === 'function') {
         doc.putTotalPages(totalPagesExp);

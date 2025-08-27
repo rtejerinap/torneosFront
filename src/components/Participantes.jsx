@@ -1,3 +1,5 @@
+import EditIcon from "@mui/icons-material/Edit";
+import EditParticipanteModal from "./EditParticipanteModal";
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -19,6 +21,8 @@ import LoadingSvg from "/src/components/loader/LoadingSvg";
 const API_BASE = import.meta.env.VITE_API_URL;
 
 const AdminParticipantes = () => {
+  const [editOpen, setEditOpen] = useState(false);
+  const [editParticipante, setEditParticipante] = useState(null);
   const [torneos, setTorneos] = useState([]);
   const [escuelas, setEscuelas] = useState([]);
   const [instructores, setInstructores] = useState([]);
@@ -42,26 +46,38 @@ const AdminParticipantes = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [detalle, setDetalle] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [paises, setPaises] = useState([]);
+  const [provincias, setProvincias] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [torneosRes, escuelasRes, instructoresRes, maestrosRes] = await Promise.all([
+        const [torneosRes, escuelasRes, instructoresRes, maestrosRes, paisesRes] = await Promise.all([
           axios.get(`${API_BASE}/torneos/activos`),
           axios.get(`${API_BASE}/escuelas`),
           axios.get(`${API_BASE}/instructores`),
           axios.get(`${API_BASE}/maestros`),
+          axios.get(`${API_BASE}/paises`),
         ]);
         setTorneos(torneosRes.data);
         setEscuelas(escuelasRes.data);
         setInstructores(instructoresRes.data);
         setMaestros(maestrosRes.data);
+        setPaises(paisesRes.data);
       } catch (err) {
         console.error("Error al cargar datos", err);
       }
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (filtros.paisId) {
+      axios.get(`${API_BASE}/provincias/pais/${filtros.paisId}`).then((res) => setProvincias(res.data));
+    } else {
+      setProvincias([]);
+    }
+  }, [filtros.paisId]);
 
   // Filtros booleanos se aplican en tiempo real
   const handleChange = (e) => {
@@ -281,47 +297,47 @@ const AdminParticipantes = () => {
   const deuda = totalACobrar - totalCobrado;
 
   const columnas = [
-    { field: "nombre", headerName: "Nombre", flex: 1 },
-    { field: "apellido", headerName: "Apellido", flex: 1 },
-    { field: "documento", headerName: "Documento", flex: 1 },
-    { field: "peso", headerName: "Peso (kg)", flex: 1 },
-    { field: "cinturon", headerName: "Cinturón", flex: 1 },
-    { field: "otroInstructor", headerName: "Otro Instructor", flex: 1 },
-    { field: "otroMaestro", headerName: "Otro Maestro", flex: 1 },
+  { field: "nombre", headerName: "Nombre", width: 120 },
+  { field: "apellido", headerName: "Apellido", width: 120 },
+  { field: "documento", headerName: "Documento", width: 120 },
+  { field: "peso", headerName: "Peso (kg)", width: 90 },
+  { field: "cinturon", headerName: "Cinturón", width: 120 },
+  { field: "otroInstructor", headerName: "Otro Instructor", width: 140 },
+  { field: "otroMaestro", headerName: "Otro Maestro", width: 140 },
     {
       field: "tul",
       headerName: "Tul",
-      flex: 0.5,
+  width: 70,
       renderCell: (params) => params.row.tul ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
       field: "lucha",
       headerName: "Lucha",
-      flex: 0.5,
+  width: 70,
       renderCell: (params) => params.row.lucha ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
       field: "equipos",
       headerName: "Equipos",
-      flex: 0.5,
+  width: 70,
       renderCell: (params) => params.row.equipos ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
       field: "coach",
       headerName: "Coach",
-      flex: 0.5,
+  width: 70,
       renderCell: (params) => params.row.coach ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
       field: "arbitro",
       headerName: "Árbitro",
-      flex: 0.5,
+  width: 70,
       renderCell: (params) => params.row.arbitro ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
       field: "autoridad_mesa",
       headerName: "Mesa",
-      flex: 0.5,
+  width: 70,
       renderCell: (params) => params.row.autoridad_mesa ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
@@ -337,7 +353,7 @@ const AdminParticipantes = () => {
           Pagado
         </Box>
       ),
-      flex: 1,
+  width: 90,
       renderCell: (params) => (
         <input
           type="checkbox"
@@ -349,16 +365,31 @@ const AdminParticipantes = () => {
     {
       field: "ver",
       headerName: "Acciones",
-      flex: 1,
+  width: 120,
       renderCell: (params) => (
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={() => abrirModal(params.row)}
-          sx={{ minWidth: 0, p: 1 }}
-        >
-          <VisibilityIcon fontSize="medium" />
-        </Button>
+        <Box display="flex" gap={1}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => abrirModal(params.row)}
+            sx={{ minWidth: 0, p: 1 }}
+          >
+            <VisibilityIcon fontSize="medium" />
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            color="secondary"
+            onClick={() => {
+              setEditParticipante(params.row);
+              setEditOpen(true);
+            }}
+            sx={{ minWidth: 0, p: 1 }}
+            aria-label="Editar participante"
+          >
+            <EditIcon fontSize="medium" />
+          </Button>
+        </Box>
       ),
     },
   ];
@@ -699,6 +730,20 @@ const AdminParticipantes = () => {
           </Box>
         </Box>
       </Modal>
+
+      {/* Modal de edición de participante */}
+      <EditParticipanteModal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        participante={editParticipante}
+        onUpdated={buscarParticipantes}
+        torneos={torneos}
+        paises={paises}
+        provincias={provincias}
+        escuelas={escuelas}
+        instructores={instructores}
+        maestros={maestros}
+      />
 
 
 

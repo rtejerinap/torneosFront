@@ -1,5 +1,7 @@
 // src/pages/AltaMaestro.jsx
 import React, { useEffect, useState } from "react";
+import { Tabs, Tab } from "@mui/material";
+import MaestrosGrid from "./MaestrosGrid";
 import {
   Box,
   Button,
@@ -21,6 +23,7 @@ const grados = [
   "9º Dan",
 ];
 
+
 const AltaMaestro = () => {
   const [form, setForm] = useState({
     nombre: "",
@@ -29,6 +32,8 @@ const AltaMaestro = () => {
     provinciaId: "",
     paisId: "",
   });
+  const [tab, setTab] = useState(0);
+  const handleTabChange = (e, v) => setTab(v);
 
   const [paises, setPaises] = useState([]);
   const [provincias, setProvincias] = useState([]);
@@ -72,90 +77,98 @@ const AltaMaestro = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 600, mx: "auto", mt: 4 }}>
-      <Typography variant="h5" gutterBottom>
-        Alta de Maestro
-      </Typography>
-      <form onSubmit={handleSubmit}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              name="nombre"
-              label="Nombre"
-              value={form.nombre}
-              onChange={handleChange}
-              required
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              name="apellido"
-              label="Apellido"
-              value={form.apellido}
-              onChange={handleChange}
-              required
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              select
-              fullWidth
-              name="graduacion"
-              label="Graduación"
-              value={form.graduacion}
-              onChange={handleChange}
-              required
-            >
-              {grados.map((grado) => (
-                <MenuItem key={grado} value={grado}>
-                  {grado}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              select
-              fullWidth
-              name="paisId"
-              label="País"
-              value={form.paisId}
-              onChange={handleChange}
-              required
-            >
-              {paises.map((pais) => (
-                <MenuItem key={pais.id} value={pais.id}>
-                  {pais.nombre}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              select
-              fullWidth
-              name="provinciaId"
-              label="Provincia"
-              value={form.provinciaId}
-              onChange={handleChange}
-              required
-            >
-              {provincias.map((prov) => (
-                <MenuItem key={prov.id} value={prov.id}>
-                  {prov.nombre}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={12}>
-            <Button type="submit" fullWidth variant="contained">
-              Registrar Maestro
-            </Button>
-          </Grid>
-        </Grid>
-      </form>
+  <Box sx={{ maxWidth: 900, mx: 0, mt: 0, p: 0, width: '100%' }}>
+      <Tabs value={tab} onChange={handleTabChange} sx={{ mb: 0.2 }}>
+        <Tab label="Registrar Maestro" />
+        <Tab label="Listado de Maestros" />
+      </Tabs>
+      {tab === 0 && (
+        <form onSubmit={handleSubmit} style={{ marginTop: 0, paddingTop: 0 }}>
+          <Grid container spacing={1} alignItems="center" sx={{ mt: 0, mb: 0, p: 0, pt: 0 }}>
+              <Grid item xs={12} sm={6} sx={{ mt: 0, mb: 0, p: 0 }}>
+                <TextField
+                  fullWidth
+                  sx={{ minWidth: 220, mt: 0, mb: 0 }}
+                  name="nombre"
+                  label="Nombre"
+                  value={form.nombre}
+                  onChange={handleChange}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} sx={{ mt: 0, mb: 0, p: 0 }}>
+                <TextField
+                  fullWidth
+                  sx={{ minWidth: 220, mt: 0, mb: 0 }}
+                  name="apellido"
+                  label="Apellido"
+                  value={form.apellido}
+                  onChange={handleChange}
+                  required
+                />
+              </Grid>
+              <Grid item sx={{ mt: 0, mb: 0, p: 0 }}>
+                <TextField
+                  select
+                  sx={{ minWidth: 120, mt: 0, mb: 0 }}
+                  name="graduacion"
+                  label="Graduación"
+                  value={form.graduacion}
+                  onChange={handleChange}
+                  required
+                >
+                  {grados.map((grado) => (
+                    <MenuItem key={grado} value={grado}>
+                      {grado}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item sx={{ mt: 0, mb: 0, p: 0 }}>
+                <TextField
+                  select
+                  sx={{ minWidth: 120, mt: 0, mb: 0 }}
+                  name="paisId"
+                  label="País"
+                  value={form.paisId}
+                  onChange={handleChange}
+                  required
+                >
+                  {paises.map((pais) => (
+                    <MenuItem key={pais.id} value={pais.id}>
+                      {pais.nombre}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item sx={{ mt: 0, mb: 0, p: 0 }}>
+                <TextField
+                  select
+                  sx={{ minWidth: 120, mt: 0, mb: 0 }}
+                  name="provinciaId"
+                  label="Provincia"
+                  value={form.provinciaId}
+                  onChange={handleChange}
+                  required
+                >
+                  {provincias.map((prov) => (
+                    <MenuItem key={prov.id} value={prov.id}>
+                      {prov.nombre}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item sx={{ mt: 0, mb: 0, p: 0, display: 'flex', alignItems: 'center' }}>
+                <Button type="submit" variant="contained" sx={{ minWidth: 180, height: 56, mt: 0, mb: 0 }}>
+                  Registrar Maestro
+                </Button>
+              </Grid>
+      </Grid>
+    </form>
+      )}
+      {tab === 1 && (
+        <MaestrosGrid />
+      )}
     </Box>
   );
 };

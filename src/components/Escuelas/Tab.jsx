@@ -16,7 +16,7 @@ function TabPanel({ children, value, index, ...other }) {
       {...other}
     >
       {value === index && (
-        <Box sx={{ p: 3 /* padding para espaciar el contenido */ }}>
+        <Box sx={{ p: 0 }}>
           {children}
         </Box>
       )}
@@ -52,9 +52,9 @@ export default function AltasUsuariosTabs() {
           textColor="primary"  /* Opcional: color del texto de la pestaña activa */
           indicatorColor="primary" /* Opcional: color del indicador debajo de la pestaña activa */
         >
-          <Tab label="Alta de Maestros" {...a11yProps(0)} sx={{ textTransform: 'none' }} />
-          <Tab label="Alta de Instructores" {...a11yProps(1)} sx={{ textTransform: 'none' }} />
-          <Tab label="Alta de Escuelas" {...a11yProps(2)} sx={{ textTransform: 'none' }} />
+          <Tab label="Maestros" {...a11yProps(0)} sx={{ textTransform: 'none' }} />
+          <Tab label="Instructores" {...a11yProps(1)} sx={{ textTransform: 'none' }} />
+          <Tab label="Escuelas" {...a11yProps(2)} sx={{ textTransform: 'none' }} />
 
         </Tabs>
       </Box>

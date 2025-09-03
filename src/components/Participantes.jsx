@@ -1,6 +1,9 @@
+
 import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import EditParticipanteModal from "./EditParticipanteModal";
 import React, { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import {
   Box,
   Typography,
@@ -10,7 +13,10 @@ import {
   Button,
   Modal,
   Paper,
+  IconButton,
+  Tooltip
 } from "@mui/material";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { DataGrid } from "@mui/x-data-grid";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import axios from "axios";
@@ -18,9 +24,19 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import LoadingSvg from "/src/components/loader/LoadingSvg";
 
+const AdminParticipantes = () => {
+  // Estado para paginación controlada de DataGrid (MUI X v6+)
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
+
 const API_BASE = import.meta.env.VITE_API_URL;
 
 const AdminParticipantes = () => {
+  // Selección múltiple y modal de asignación de instructor (deben ir dentro del componente)
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [modalAsignar, setModalAsignar] = useState(false);
+  const [instructorAsignar, setInstructorAsignar] = useState("");
+  const [asignando, setAsignando] = useState(false);
+  const [asignarMsg, setAsignarMsg] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editParticipante, setEditParticipante] = useState(null);
   const [torneos, setTorneos] = useState([]);
@@ -48,6 +64,12 @@ const AdminParticipantes = () => {
   const [loading, setLoading] = useState(false);
   const [paises, setPaises] = useState([]);
   const [provincias, setProvincias] = useState([]);
+  const { rol } = useAuth();
+  const esAdmin = rol && (Array.isArray(rol) ? rol.includes("admin") : rol === "admin");
+
+  // Modal de confirmación de borrado
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [participanteAEliminar, setParticipanteAEliminar] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -297,47 +319,47 @@ const AdminParticipantes = () => {
   const deuda = totalACobrar - totalCobrado;
 
   const columnas = [
-  { field: "nombre", headerName: "Nombre", width: 120 },
-  { field: "apellido", headerName: "Apellido", width: 120 },
-  { field: "documento", headerName: "Documento", width: 120 },
-  { field: "peso", headerName: "Peso (kg)", width: 90 },
-  { field: "cinturon", headerName: "Cinturón", width: 120 },
-  { field: "otroInstructor", headerName: "Otro Instructor", width: 140 },
-  { field: "otroMaestro", headerName: "Otro Maestro", width: 140 },
+    { field: "nombre", headerName: "Nombre", width: 120 },
+    { field: "apellido", headerName: "Apellido", width: 120 },
+    { field: "documento", headerName: "Documento", width: 120 },
+    { field: "peso", headerName: "Peso (kg)", width: 90 },
+    { field: "cinturon", headerName: "Cinturón", width: 120 },
+    { field: "otroInstructor", headerName: "Otro Instructor", width: 140 },
+    { field: "otroMaestro", headerName: "Otro Maestro", width: 140 },
     {
       field: "tul",
       headerName: "Tul",
-  width: 70,
+      width: 70,
       renderCell: (params) => params.row.tul ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
       field: "lucha",
       headerName: "Lucha",
-  width: 70,
+      width: 70,
       renderCell: (params) => params.row.lucha ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
       field: "equipos",
       headerName: "Equipos",
-  width: 70,
+      width: 70,
       renderCell: (params) => params.row.equipos ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
       field: "coach",
       headerName: "Coach",
-  width: 70,
+      width: 70,
       renderCell: (params) => params.row.coach ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
       field: "arbitro",
       headerName: "Árbitro",
-  width: 70,
+      width: 70,
       renderCell: (params) => params.row.arbitro ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
       field: "autoridad_mesa",
       headerName: "Mesa",
-  width: 70,
+      width: 70,
       renderCell: (params) => params.row.autoridad_mesa ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
@@ -353,7 +375,7 @@ const AdminParticipantes = () => {
           Pagado
         </Box>
       ),
-  width: 90,
+      width: 90,
       renderCell: (params) => (
         <input
           type="checkbox"
@@ -365,7 +387,7 @@ const AdminParticipantes = () => {
     {
       field: "ver",
       headerName: "Acciones",
-  width: 120,
+      width: esAdmin ? 150 : 80,
       renderCell: (params) => (
         <Box display="flex" gap={1}>
           <Button
@@ -376,23 +398,54 @@ const AdminParticipantes = () => {
           >
             <VisibilityIcon fontSize="medium" />
           </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            color="secondary"
-            onClick={() => {
-              setEditParticipante(params.row);
-              setEditOpen(true);
-            }}
-            sx={{ minWidth: 0, p: 1 }}
-            aria-label="Editar participante"
-          >
-            <EditIcon fontSize="medium" />
-          </Button>
+          {esAdmin && (
+            <>
+              <Button
+                variant="outlined"
+                size="small"
+                color="secondary"
+                onClick={() => {
+                  setEditParticipante(params.row);
+                  setEditOpen(true);
+                }}
+                sx={{ minWidth: 0, p: 1 }}
+                aria-label="Editar participante"
+              >
+                <EditIcon fontSize="medium" sx={{ color: '#1976d2' }} />
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                color="error"
+                onClick={() => {
+                  setParticipanteAEliminar(params.row);
+                  setDeleteOpen(true);
+                }}
+                sx={{ minWidth: 0, p: 1 }}
+                aria-label="Eliminar participante"
+              >
+                <DeleteIcon fontSize="medium" />
+              </Button>
+            </>
+          )}
         </Box>
       ),
     },
   ];
+  // Handler para eliminar participante
+  const handleEliminarParticipante = async () => {
+    if (!participanteAEliminar) return;
+    try {
+      await axios.delete(`${API_BASE}/participantes/${participanteAEliminar.id}`);
+      setDeleteOpen(false);
+      setParticipanteAEliminar(null);
+      buscarParticipantes();
+    } catch (err) {
+      alert("Error al eliminar participante");
+      setDeleteOpen(false);
+      setParticipanteAEliminar(null);
+    }
+  };
 
   const abrirModal = (datos) => {
     setDetalle(datos);
@@ -650,14 +703,84 @@ const AdminParticipantes = () => {
           </Grid>
         </Grid>
       </Box>
+      {/* Barra de acciones sobre la grilla */}
+      <Box display="flex" alignItems="center" justifyContent="flex-end" mb={1} gap={2}>
+        <Tooltip title="Asignar participantes seleccionados a otro instructor">
+          <span>
+            <IconButton
+              color="success"
+              disabled={selectedRows.length === 0}
+              onClick={() => setModalAsignar(true)}
+              aria-label="Asignar a instructor"
+              size="large"
+            >
+              <ArrowForwardIcon fontSize="large" />
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Box>
       <Paper sx={{ height: 500 }}>
         <DataGrid
           rows={participantes.map((p) => ({ id: p.id, ...p }))}
           columns={columnas}
-          pageSize={10}
-          rowsPerPageOptions={[10, 20, 50]}
+          pagination
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          pageSizeOptions={[10, 20, 50, 100]}
+          checkboxSelection
+          onRowSelectionModelChange={(ids) => setSelectedRows(ids)}
+          rowSelectionModel={selectedRows}
         />
       </Paper>
+      {/* Modal para asignar participantes seleccionados a otro instructor */}
+      <Modal open={modalAsignar} onClose={() => { setModalAsignar(false); setInstructorAsignar(""); setAsignarMsg(""); }}>
+        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', bgcolor: '#fff', color: '#000', boxShadow: 24, borderRadius: 2, minWidth: 350, maxWidth: 500, p: 3, textAlign: 'center' }}>
+          <Typography variant="h6" gutterBottom>Asignar participantes seleccionados a otro instructor</Typography>
+          <TextField
+            select
+            label="Instructor destino"
+            value={instructorAsignar}
+            onChange={e => setInstructorAsignar(e.target.value)}
+            sx={{ minWidth: 250, mb: 2 }}
+          >
+            <MenuItem value="">Seleccione un instructor</MenuItem>
+            {instructores.map((i) => (
+              <MenuItem key={i.id} value={i.id}>{`${i.apellido}, ${i.nombre} (${i.graduacion || ''})`}</MenuItem>
+            ))}
+          </TextField>
+          <Box>
+            <Button
+              variant="contained"
+              color="success"
+              disabled={!instructorAsignar || asignando}
+              onClick={async () => {
+                setAsignando(true);
+                setAsignarMsg("");
+                try {
+                  // Llamar endpoint con los participantes seleccionados (selectedRows) y el instructor destino
+                  await axios.put(`${API_BASE}/participantes/asignar-instructor-limpiar-otro`, {
+                    participanteIds: selectedRows,
+                    instructorId: instructorAsignar
+                  });
+                  setAsignarMsg("Participantes asignados correctamente.");
+                  // Refrescar participantes
+                  buscarParticipantes();
+                  setSelectedRows([]);
+                } catch (err) {
+                  setAsignarMsg("Error al asignar participantes.");
+                } finally {
+                  setAsignando(false);
+                }
+              }}
+              sx={{ mr: 2 }}
+            >
+              {asignando ? "Asignando..." : "Asignar"}
+            </Button>
+            <Button variant="outlined" onClick={() => { setModalAsignar(false); setInstructorAsignar(""); setAsignarMsg(""); }} disabled={asignando}>Cancelar</Button>
+          </Box>
+          {asignarMsg && <Typography sx={{ mt: 2 }} color={asignarMsg.startsWith("Error") ? "error" : "success.main"}>{asignarMsg}</Typography>}
+        </Box>
+      </Modal>
       <Modal open={modalOpen} onClose={cerrarModal}>
         <Box
           sx={{
@@ -745,10 +868,45 @@ const AdminParticipantes = () => {
         maestros={maestros}
       />
 
+      {/* Modal de confirmación de borrado */}
+      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)}>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            bgcolor: "#fff",
+            color: "#000",
+            boxShadow: 24,
+            borderRadius: 2,
+            minWidth: 350,
+            maxWidth: 400,
+            p: 3,
+            textAlign: "center"
+          }}
+        >
+          <Typography variant="h6" gutterBottom>
+            ¿Seguro que deseas eliminar este participante?
+          </Typography>
+          <Typography fontSize={18} sx={{ mb: 2 }}>
+            {participanteAEliminar?.nombre} {participanteAEliminar?.apellido}
+          </Typography>
+          <Box display="flex" justifyContent="center" gap={2}>
+            <Button variant="contained" color="error" onClick={handleEliminarParticipante}>
+              Eliminar
+            </Button>
+            <Button variant="outlined" onClick={() => setDeleteOpen(false)}>
+              Cancelar
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
 
 
     </Box>
   );
 };
-
+}
 export default AdminParticipantes;

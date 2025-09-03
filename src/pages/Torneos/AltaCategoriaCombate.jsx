@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
-  TextField, Button, MenuItem, Grid, Typography, Box, Divider
+  TextField, Button, MenuItem, Grid, Typography, Box, Divider, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+
 const API_BASE = import.meta.env.VITE_API_URL;
 
 const rangoEdades = [
@@ -55,38 +60,38 @@ const tiemposRound = [
   { label: '120 segundos', value: 120 }
 ];
 
+
 const AltaCategoriaCombate = () => {
+  const [tab, setTab] = useState(0);
   const [torneos, setTorneos] = useState([]);
   const [form, setForm] = useState({
-    sexo: '',
-    edad_min: '',
-    edad_max: '',
-    peso_minimo: '',
-    peso_maximo: '',
-    graduacion_desde: '',
-    graduacion_hasta: '',
-    tiempo_por_round_preliminar: '',
-    cantidad_de_rounds_preliminar: '',
-    tiempo_por_round_final: '',
-    cantidad_de_rounds_final: '',
-    tiempo_extra: '',
-    id_torneo: ''
+    sexo: '', edad_min: '', edad_max: '', peso_minimo: '', peso_maximo: '',
+    graduacion_desde: '', graduacion_hasta: '', tiempo_por_round_preliminar: '',
+    cantidad_de_rounds_preliminar: '', tiempo_por_round_final: '', cantidad_de_rounds_final: '',
+    tiempo_extra: '', id_torneo: ''
   });
-
+  const [categorias, setCategorias] = useState([]);
+  const [torneoSel, setTorneoSel] = useState('');
+  // Modales y selección
+  const [modal, setModal] = useState({ open: false, type: '', categoria: null });
+  const [editForm, setEditForm] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
   const fieldStyle = { minWidth: 180 };
 
+  // Traer torneos activos para ambos tabs
   useEffect(() => {
-    const fetchTorneos = async () => {
-      try {
-const res = await fetch(`${API_BASE}/torneos`);
-        const data = await res.json();
-        setTorneos(data);
-      } catch (err) {
-        console.error('Error al cargar torneos:', err);
-      }
-    };
-    fetchTorneos();
+    axios.get(`${API_BASE}/torneos/activos`).then(res => setTorneos(res.data)).catch(() => setTorneos([]));
   }, []);
+
+  // Traer categorías cuando se selecciona torneo en tab 2
+  useEffect(() => {
+    if (tab === 1 && torneoSel) {
+      axios.get(`${API_BASE}/api/categorias?torneoId=${torneoSel}`)
+        .then(res => setCategorias(res.data))
+        .catch(() => setCategorias([]));
+    }
+  }, [tab, torneoSel]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -150,105 +155,269 @@ const res = await fetch(`${API_BASE}/api/categorias`, {
   };
 
   return (
-    <Box sx={{ p: 3, maxWidth: 700, margin: '0 auto' }}>
-      <Typography variant="h5" gutterBottom>Crear Categoría de Combate</Typography>
-      <form onSubmit={handleSubmit}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
-            <TextField select label="Sexo" name="sexo" value={form.sexo} onChange={handleChange} sx={fieldStyle} fullWidth>
-              <MenuItem value="masculino">Masculino</MenuItem>
-              <MenuItem value="femenino">Femenino</MenuItem>
-              <MenuItem value="mixto">Mixto</MenuItem>
-            </TextField>
-          </Grid>
+    <Box sx={{ p: 3, maxWidth: 900, margin: '0 auto' }}>
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+        <Tab label="Crear categoría" />
+        <Tab label="Ver categorías" />
+      </Tabs>
+      {tab === 0 && (
+        <>
+          <Typography variant="h5" gutterBottom>Crear Categoría de Combate</Typography>
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Sexo" name="sexo" value={form.sexo} onChange={handleChange} sx={fieldStyle} fullWidth>
+                  <MenuItem value="masculino">Masculino</MenuItem>
+                  <MenuItem value="femenino">Femenino</MenuItem>
+                  <MenuItem value="mixto">Mixto</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Rango de Edad" name="edad_min" value={form.edad_min && form.edad_max ? `${form.edad_min}-${form.edad_max}` : ''}
+                  onChange={(e) => {
+                    const r = rangoEdades.find(opt => `${opt.min}-${opt.max}` === e.target.value);
+                    if (r) setForm({ ...form, edad_min: r.min, edad_max: r.max });
+                  }} sx={fieldStyle} fullWidth>
+                  {rangoEdades.map((r) => (
+                    <MenuItem key={r.label} value={`${r.min}-${r.max}`}>{r.label}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Rango de Peso" name="peso_minimo" value={form.peso_minimo && form.peso_maximo ? `${form.peso_minimo}-${form.peso_maximo}` : ''}
+                  onChange={(e) => {
+                    const r = rangoPesos.find(opt => `${opt.min}-${opt.max}` === e.target.value);
+                    if (r) setForm({ ...form, peso_minimo: r.min, peso_maximo: r.max });
+                  }} sx={fieldStyle} fullWidth>
+                  {rangoPesos.map((r) => (
+                    <MenuItem key={r.label} value={`${r.min}-${r.max}`}>{r.label}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Graduación Desde" name="graduacion_desde" value={form.graduacion_desde} onChange={handleChange} sx={fieldStyle} fullWidth>
+                  {ORDEN_CINTURONES.map((g) => (
+                    <MenuItem key={g} value={g}>{g}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Graduación Hasta" name="graduacion_hasta" value={form.graduacion_hasta} onChange={handleChange} sx={fieldStyle} fullWidth>
+                  {ORDEN_CINTURONES.map((g) => (
+                    <MenuItem key={g} value={g}>{g}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12}><Divider sx={{ my: 2 }} /><Typography variant="h6">Preliminares</Typography></Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Tiempo por round (preliminar)" name="tiempo_por_round_preliminar" value={form.tiempo_por_round_preliminar} onChange={handleChange} sx={fieldStyle} fullWidth>
+                  {tiemposRound.map((op) => (
+                    <MenuItem key={op.value} value={op.value}>{op.label}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField type="number" label="Cantidad de rounds (preliminar)" name="cantidad_de_rounds_preliminar" value={form.cantidad_de_rounds_preliminar} onChange={handleChange} fullWidth />
+              </Grid>
+              <Grid item xs={12}><Divider sx={{ my: 2 }} /><Typography variant="h6">Finales</Typography></Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Tiempo por round (final)" name="tiempo_por_round_final" value={form.tiempo_por_round_final} onChange={handleChange} sx={fieldStyle} fullWidth>
+                  {tiemposRound.map((op) => (
+                    <MenuItem key={op.value} value={op.value}>{op.label}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField type="number" label="Cantidad de rounds (final)" name="cantidad_de_rounds_final" value={form.cantidad_de_rounds_final} onChange={handleChange} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField type="number" label="Tiempo extra (segundos)" name="tiempo_extra" value={form.tiempo_extra} onChange={handleChange} fullWidth />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField select label="Torneo" name="id_torneo" value={form.id_torneo} onChange={handleChange} sx={fieldStyle} fullWidth>
+                  {torneos.map((torneo) => (
+                    <MenuItem key={torneo.id} value={torneo.id}>{torneo.nombre}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12}>
+                <Button type="submit" variant="contained" fullWidth>
+                  Crear Categoría
+                </Button>
+              </Grid>
+            </Grid>
+          </form>
+        </>
+      )}
+      {tab === 1 && (
+        <Box>
+          <Typography variant="h5" gutterBottom>Listado de Categorías</Typography>
+          <TextField
+            select
+            label="Seleccionar Torneo"
+            value={torneoSel}
+            onChange={e => setTorneoSel(e.target.value)}
+            sx={{ minWidth: 220, mb: 2 }}
+          >
+            <MenuItem value="">Seleccione un torneo</MenuItem>
+            {torneos.map((torneo) => (
+              <MenuItem key={torneo.id} value={torneo.id}>{torneo.nombre}</MenuItem>
+            ))}
+          </TextField>
+          {torneoSel && (
+            <TableContainer component={Paper} sx={{ mt: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Nombre</TableCell>
+                    <TableCell>Sexo</TableCell>
+                    <TableCell>Edad</TableCell>
+                    <TableCell>Peso</TableCell>
+                    <TableCell>Graduación</TableCell>
+                    <TableCell align="center">Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {categorias.map((cat) => (
+                    <TableRow key={cat.id}>
+                      <TableCell>{cat.nombre}</TableCell>
+                      <TableCell>{cat.sexo}</TableCell>
+                      <TableCell>{cat.edad_min} - {cat.edad_max}</TableCell>
+                      <TableCell>{cat.peso_minimo} - {cat.peso_maximo} kg</TableCell>
+                      <TableCell>{cat.graduacion_desde} a {cat.graduacion_hasta}</TableCell>
+                      <TableCell align="center">
+                        <IconButton size="small" sx={{ color: '#1976d2' }} onClick={() => setModal({ open: true, type: 'view', categoria: cat })} title="Ver detalles"><VisibilityIcon /></IconButton>
+                        <IconButton size="small" sx={{ color: '#1976d2' }} onClick={() => { setEditForm(cat); setModal({ open: true, type: 'edit', categoria: cat }); }} title="Editar"><EditIcon /></IconButton>
+                        <IconButton size="small" color="error" onClick={() => setModal({ open: true, type: 'delete', categoria: cat })} title="Eliminar"><DeleteIcon /></IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+      {/* Modal Ver Detalles */}
+      <Dialog open={modal.open && modal.type === 'view'} onClose={() => setModal({ open: false })} maxWidth="sm" fullWidth>
+        <DialogTitle>Detalles de la Categoría</DialogTitle>
+        <DialogContent dividers>
+          {modal.categoria && (
+            <Box>
+              <Typography><b>Nombre:</b> {modal.categoria.nombre}</Typography>
+              <Typography><b>Sexo:</b> {modal.categoria.sexo}</Typography>
+              <Typography><b>Edad:</b> {modal.categoria.edad_min} - {modal.categoria.edad_max}</Typography>
+              <Typography><b>Peso:</b> {modal.categoria.peso_minimo} - {modal.categoria.peso_maximo} kg</Typography>
+              <Typography><b>Graduación:</b> {modal.categoria.graduacion_desde} a {modal.categoria.graduacion_hasta}</Typography>
+              <Typography><b>Rounds Preliminar:</b> {modal.categoria.cantidad_de_rounds_preliminar} x {modal.categoria.tiempo_por_round_preliminar}s</Typography>
+              <Typography><b>Rounds Final:</b> {modal.categoria.cantidad_de_rounds_final} x {modal.categoria.tiempo_por_round_final}s</Typography>
+              <Typography><b>Tiempo extra:</b> {modal.categoria.tiempo_extra}s</Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setModal({ open: false })}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
 
-          <Grid item xs={12} sm={6}>
-            <TextField select label="Rango de Edad" name="edad_min" value={form.edad_min && form.edad_max ? `${form.edad_min}-${form.edad_max}` : ''}
-              onChange={(e) => {
-                const r = rangoEdades.find(opt => `${opt.min}-${opt.max}` === e.target.value);
-                if (r) setForm({ ...form, edad_min: r.min, edad_max: r.max });
-              }} sx={fieldStyle} fullWidth>
-              {rangoEdades.map((r) => (
-                <MenuItem key={r.label} value={`${r.min}-${r.max}`}>{r.label}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
+      {/* Modal Eliminar */}
+      <Dialog open={modal.open && modal.type === 'delete'} onClose={() => setModal({ open: false })} maxWidth="xs">
+        <DialogTitle>Eliminar Categoría</DialogTitle>
+        <DialogContent dividers>
+          {modal.categoria && (
+            <Typography>¿Seguro que deseas eliminar la categoría <b>{modal.categoria.nombre}</b>?</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setModal({ open: false })} disabled={deleteLoading}>Cancelar</Button>
+          <Button color="error" variant="contained" disabled={deleteLoading} onClick={async () => {
+            setDeleteLoading(true);
+            try {
+              await axios.delete(`${API_BASE}/api/categorias/${modal.categoria.id}`);
+              setCategorias(categorias.filter(c => c.id !== modal.categoria.id));
+              setModal({ open: false });
+            } catch (e) {
+              alert('Error al eliminar');
+            } finally {
+              setDeleteLoading(false);
+            }
+          }}>Eliminar</Button>
+        </DialogActions>
+      </Dialog>
 
-          <Grid item xs={12} sm={6}>
-            <TextField select label="Rango de Peso" name="peso_minimo" value={form.peso_minimo && form.peso_maximo ? `${form.peso_minimo}-${form.peso_maximo}` : ''}
-              onChange={(e) => {
-                const r = rangoPesos.find(opt => `${opt.min}-${opt.max}` === e.target.value);
-                if (r) setForm({ ...form, peso_minimo: r.min, peso_maximo: r.max });
-              }} sx={fieldStyle} fullWidth>
-              {rangoPesos.map((r) => (
-                <MenuItem key={r.label} value={`${r.min}-${r.max}`}>{r.label}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <TextField select label="Graduación Desde" name="graduacion_desde" value={form.graduacion_desde} onChange={handleChange} sx={fieldStyle} fullWidth>
-              {ORDEN_CINTURONES.map((g) => (
-                <MenuItem key={g} value={g}>{g}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <TextField select label="Graduación Hasta" name="graduacion_hasta" value={form.graduacion_hasta} onChange={handleChange} sx={fieldStyle} fullWidth>
-              {ORDEN_CINTURONES.map((g) => (
-                <MenuItem key={g} value={g}>{g}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-
-          <Grid item xs={12}><Divider sx={{ my: 2 }} /><Typography variant="h6">Preliminares</Typography></Grid>
-
-          <Grid item xs={12} sm={6}>
-            <TextField select label="Tiempo por round (preliminar)" name="tiempo_por_round_preliminar" value={form.tiempo_por_round_preliminar} onChange={handleChange} sx={fieldStyle} fullWidth>
-              {tiemposRound.map((op) => (
-                <MenuItem key={op.value} value={op.value}>{op.label}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <TextField type="number" label="Cantidad de rounds (preliminar)" name="cantidad_de_rounds_preliminar" value={form.cantidad_de_rounds_preliminar} onChange={handleChange} fullWidth />
-          </Grid>
-
-          <Grid item xs={12}><Divider sx={{ my: 2 }} /><Typography variant="h6">Finales</Typography></Grid>
-
-          <Grid item xs={12} sm={6}>
-            <TextField select label="Tiempo por round (final)" name="tiempo_por_round_final" value={form.tiempo_por_round_final} onChange={handleChange} sx={fieldStyle} fullWidth>
-              {tiemposRound.map((op) => (
-                <MenuItem key={op.value} value={op.value}>{op.label}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <TextField type="number" label="Cantidad de rounds (final)" name="cantidad_de_rounds_final" value={form.cantidad_de_rounds_final} onChange={handleChange} fullWidth />
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <TextField type="number" label="Tiempo extra (segundos)" name="tiempo_extra" value={form.tiempo_extra} onChange={handleChange} fullWidth />
-          </Grid>
-
-          <Grid item xs={12}>
-            <TextField select label="Torneo" name="id_torneo" value={form.id_torneo} onChange={handleChange} sx={fieldStyle} fullWidth>
-              {torneos.map((torneo) => (
-                <MenuItem key={torneo.id} value={torneo.id}>{torneo.nombre}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Button type="submit" variant="contained" fullWidth>
-              Crear Categoría
-            </Button>
-          </Grid>
-        </Grid>
-      </form>
+      {/* Modal Editar */}
+      <Dialog open={modal.open && modal.type === 'edit'} onClose={() => setModal({ open: false })} maxWidth="sm" fullWidth>
+        <DialogTitle>Editar Categoría</DialogTitle>
+        <DialogContent dividers>
+          {editForm && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Sexo" name="sexo" value={editForm.sexo} onChange={e => setEditForm(f => ({ ...f, sexo: e.target.value }))} fullWidth>
+                  <MenuItem value="masculino">Masculino</MenuItem>
+                  <MenuItem value="femenino">Femenino</MenuItem>
+                  <MenuItem value="mixto">Mixto</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Edad mínima" type="number" name="edad_min" value={editForm.edad_min} onChange={e => setEditForm(f => ({ ...f, edad_min: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Edad máxima" type="number" name="edad_max" value={editForm.edad_max} onChange={e => setEditForm(f => ({ ...f, edad_max: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Peso mínimo" type="number" name="peso_minimo" value={editForm.peso_minimo} onChange={e => setEditForm(f => ({ ...f, peso_minimo: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Peso máximo" type="number" name="peso_maximo" value={editForm.peso_maximo} onChange={e => setEditForm(f => ({ ...f, peso_maximo: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Graduación Desde" name="graduacion_desde" value={editForm.graduacion_desde} onChange={e => setEditForm(f => ({ ...f, graduacion_desde: e.target.value }))} fullWidth>
+                  {ORDEN_CINTURONES.map((g) => (
+                    <MenuItem key={g} value={g}>{g}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Graduación Hasta" name="graduacion_hasta" value={editForm.graduacion_hasta} onChange={e => setEditForm(f => ({ ...f, graduacion_hasta: e.target.value }))} fullWidth>
+                  {ORDEN_CINTURONES.map((g) => (
+                    <MenuItem key={g} value={g}>{g}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Tiempo por round (preliminar)" type="number" name="tiempo_por_round_preliminar" value={editForm.tiempo_por_round_preliminar} onChange={e => setEditForm(f => ({ ...f, tiempo_por_round_preliminar: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Cantidad de rounds (preliminar)" type="number" name="cantidad_de_rounds_preliminar" value={editForm.cantidad_de_rounds_preliminar} onChange={e => setEditForm(f => ({ ...f, cantidad_de_rounds_preliminar: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Tiempo por round (final)" type="number" name="tiempo_por_round_final" value={editForm.tiempo_por_round_final} onChange={e => setEditForm(f => ({ ...f, tiempo_por_round_final: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Cantidad de rounds (final)" type="number" name="cantidad_de_rounds_final" value={editForm.cantidad_de_rounds_final} onChange={e => setEditForm(f => ({ ...f, cantidad_de_rounds_final: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Tiempo extra (segundos)" type="number" name="tiempo_extra" value={editForm.tiempo_extra} onChange={e => setEditForm(f => ({ ...f, tiempo_extra: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setModal({ open: false })} disabled={editLoading}>Cancelar</Button>
+          <Button variant="contained" disabled={editLoading} onClick={async () => {
+            setEditLoading(true);
+            try {
+              await axios.put(`${API_BASE}/api/categorias/${editForm.id}`, editForm);
+              setCategorias(categorias.map(c => c.id === editForm.id ? { ...editForm } : c));
+              setModal({ open: false });
+            } catch (e) {
+              alert('Error al editar');
+            } finally {
+              setEditLoading(false);
+            }
+          }}>Guardar</Button>
+        </DialogActions>
+      </Dialog>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Box>
+      )}
     </Box>
   );
 };

@@ -1,3 +1,4 @@
+// ✅ Versión para MUI v5 (@mui/material v5 y @mui/x-data-grid v5)
 import React, { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { Box, IconButton, Modal, Typography, Button, TextField, MenuItem } from "@mui/material";
@@ -33,11 +34,31 @@ const InstructoresGrid = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState('view');
   const [loading, setLoading] = useState(true);
+
   const [modalParticipantes, setModalParticipantes] = useState(false);
   const [participantes, setParticipantes] = useState([]);
   const [torneoSel, setTorneoSel] = useState("");
   const [torneos, setTorneos] = useState([]);
   const [loadingParticipantes, setLoadingParticipantes] = useState(false);
+
+  // ✅ paginación controlada (v5)
+  const [pageSize, setPageSize] = useState(8);
+
+  // Normalizador de ID estable (sin Math.random)
+  const normalizeId = (r, idx) => {
+    if (r?.id) return String(r.id);
+    if (r?._id) return String(r._id);
+    // Fallback "estable" por combinación de campos (mejor que índice suelto)
+    const composite = [
+      r?.apellido ?? "",
+      r?.nombre ?? "",
+      r?.graduacion ?? "",
+      r?.paisId ?? "",
+      r?.provinciaId ?? "",
+      r?.maestroId ?? "",
+    ].join("|");
+    return composite || String(idx);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,11 +71,17 @@ const InstructoresGrid = () => {
           axios.get(`${API_BASE}/provincias`),
           axios.get(`${API_BASE}/torneos/activos`),
         ]);
-        setInstructores(resInstructores.data);
-        setMaestros(resMaestros.data);
-        setPaises(resPaises.data);
-        setProvincias(resProvincias.data);
-        setTorneos(resTorneos.data);
+
+        // ✅ IDs estables para el DataGrid (todo string)
+        const rowsInstructores = (resInstructores.data || [])
+          .filter(Boolean)
+          .map((i, idx) => ({ ...i, id: normalizeId(i, idx) }));
+
+        setInstructores(rowsInstructores);
+        setMaestros(Array.isArray(resMaestros.data) ? resMaestros.data : []);
+        setPaises(Array.isArray(resPaises.data) ? resPaises.data : []);
+        setProvincias(Array.isArray(resProvincias.data) ? resProvincias.data : []);
+        setTorneos(Array.isArray(resTorneos.data) ? resTorneos.data : []);
       } catch (error) {
         setInstructores([]);
         setMaestros([]);
@@ -67,6 +94,7 @@ const InstructoresGrid = () => {
     };
     fetchData();
   }, []);
+
   const handleConsultarParticipantes = (row) => {
     setSelected(row);
     setTorneoSel("");
@@ -79,7 +107,7 @@ const InstructoresGrid = () => {
     setLoadingParticipantes(true);
     try {
       const res = await axios.get(`${API_BASE}/participantes/torneo/${torneoSel}/instructor/${selected.id}`);
-      setParticipantes(res.data);
+      setParticipantes(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       setParticipantes([]);
     } finally {
@@ -132,18 +160,24 @@ const InstructoresGrid = () => {
     setSaving(true);
     try {
       await axios.put(`${API_BASE}/instructores/${selected.id}`, editForm);
+
       setModalOpen(false);
       setSelected(null);
       setEditForm({ nombre: '', apellido: '', graduacion: '', paisId: '', provinciaId: '', maestroId: '' });
-      // Refrescar instructores
+
+      // Refrescar instructores con IDs estables
       const res = await axios.get(`${API_BASE}/instructores`);
-      setInstructores(res.data);
+      const rowsInstructores = (res.data || [])
+        .filter(Boolean)
+        .map((i, idx) => ({ ...i, id: normalizeId(i, idx) }));
+      setInstructores(rowsInstructores);
     } catch (err) {
       alert("Error al actualizar instructor");
     } finally {
       setSaving(false);
     }
   };
+
   const handleDelete = async (row) => {
     if (window.confirm("¿Seguro que desea eliminar este instructor?")) {
       try {
@@ -165,9 +199,9 @@ const InstructoresGrid = () => {
       flex: 1,
       renderCell: (params) => {
         const id = params.row?.paisId;
-        if (!id || !Array.isArray(paises)) return <span style={{color:'red'}}>{id || ''}</span>;
+        if (!id || !Array.isArray(paises)) return <span style={{ color: 'red' }}>{id || ''}</span>;
         const pais = paises.find(p => p.id === id);
-        if (!pais) return <span style={{color:'red'}}>{id}</span>;
+        if (!pais) return <span style={{ color: 'red' }}>{id}</span>;
         return pais.nombre;
       }
     },
@@ -177,9 +211,9 @@ const InstructoresGrid = () => {
       flex: 1,
       renderCell: (params) => {
         const id = params.row?.provinciaId;
-        if (!id || !Array.isArray(provincias)) return <span style={{color:'red'}}>{id || ''}</span>;
+        if (!id || !Array.isArray(provincias)) return <span style={{ color: 'red' }}>{id || ''}</span>;
         const prov = provincias.find(p => p.id === id);
-        if (!prov) return <span style={{color:'red'}}>{id}</span>;
+        if (!prov) return <span style={{ color: 'red' }}>{id}</span>;
         return prov.nombre;
       }
     },
@@ -189,9 +223,9 @@ const InstructoresGrid = () => {
       flex: 1.5,
       renderCell: (params) => {
         const id = params.row?.maestroId;
-        if (!id || !Array.isArray(maestros)) return <span style={{color:'red'}}>{id || ''}</span>;
+        if (!id || !Array.isArray(maestros)) return <span style={{ color: 'red' }}>{id || ''}</span>;
         const m = maestros.find(maestro => maestro.id === id);
-        if (!m) return <span style={{color:'red'}}>{id}</span>;
+        if (!m) return <span style={{ color: 'red' }}>{id}</span>;
         return `${m.apellido}, ${m.nombre} (${m.graduacion})`;
       }
     },
@@ -228,14 +262,25 @@ const InstructoresGrid = () => {
       ) : (
         <DataGrid
           autoHeight
-          rows={Array.isArray(instructores) ? instructores.filter(Boolean) : []}
+          rows={Array.isArray(instructores) ? instructores : []}
           columns={columns}
-          pageSize={8}
-          rowsPerPageOptions={[8]}
-          getRowId={(row) => (row && row.id ? row.id : Math.random())}
+
+          // ✅ paginación (v5 controlada)
+          pageSize={pageSize}
+          rowsPerPageOptions={[8, 20, 50, 100]}
+          onPageSizeChange={(newPageSize) => setPageSize(newPageSize)}
+          pagination
+
+          // IDs estables
+          getRowId={(row) => row.id}
+
+          // v5
           disableSelectionOnClick
+          // Evita problemas en footer con selección (si lo tuvieras)
+          hideFooterSelectedRowCount
         />
       )}
+
       <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
         <Box sx={style}>
           {modalType === 'view' && selected && (
@@ -325,44 +370,45 @@ const InstructoresGrid = () => {
           )}
         </Box>
       </Modal>
-    {/* Modal para consultar participantes por instructor y torneo */}
-    <Modal open={modalParticipantes} onClose={() => setModalParticipantes(false)}>
-      <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', bgcolor: '#fff', color: '#000', boxShadow: 24, borderRadius: 2, minWidth: 350, maxWidth: 600, p: 3, textAlign: 'center' }}>
-        <Typography variant="h6" gutterBottom>Participantes de {selected?.nombre} {selected?.apellido}</Typography>
-        <TextField
-          select
-          label="Torneo"
-          value={torneoSel}
-          onChange={e => setTorneoSel(e.target.value)}
-          sx={{ minWidth: 220, mb: 2 }}
-        >
-          <MenuItem value="">Seleccione un torneo</MenuItem>
-          {torneos.map((t) => (
-            <MenuItem key={t.id} value={t.id}>{t.nombre}</MenuItem>
-          ))}
-        </TextField>
-        <Button variant="contained" onClick={fetchParticipantesInstructor} disabled={!torneoSel || loadingParticipantes} sx={{ ml: 2 }}>
-          {loadingParticipantes ? "Cargando..." : "Consultar"}
-        </Button>
-        <Box sx={{ mt: 2, maxHeight: 300, overflowY: 'auto' }}>
-          {participantes.length > 0 ? (
-            <>
-              <Typography variant="subtitle1">Total: {participantes.length}</Typography>
-              <ul style={{ textAlign: 'left', margin: 0, padding: 0 }}>
-                {participantes.map((p) => (
-                  <li key={p.id} style={{ marginBottom: 4 }}>
-                    {p.apellido}, {p.nombre} - {p.documento}
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : torneoSel && !loadingParticipantes ? (
-            <Typography variant="body2">No hay participantes para este instructor en el torneo seleccionado.</Typography>
-          ) : null}
+
+      {/* Modal participantes por instructor y torneo */}
+      <Modal open={modalParticipantes} onClose={() => setModalParticipantes(false)}>
+        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', bgcolor: '#fff', color: '#000', boxShadow: 24, borderRadius: 2, minWidth: 350, maxWidth: 600, p: 3, textAlign: 'center' }}>
+          <Typography variant="h6" gutterBottom>Participantes de {selected?.nombre} {selected?.apellido}</Typography>
+          <TextField
+            select
+            label="Torneo"
+            value={torneoSel}
+            onChange={e => setTorneoSel(e.target.value)}
+            sx={{ minWidth: 220, mb: 2 }}
+          >
+            <MenuItem value="">Seleccione un torneo</MenuItem>
+            {torneos.map((t) => (
+              <MenuItem key={t.id} value={t.id}>{t.nombre}</MenuItem>
+            ))}
+          </TextField>
+          <Button variant="contained" onClick={fetchParticipantesInstructor} disabled={!torneoSel || loadingParticipantes} sx={{ ml: 2 }}>
+            {loadingParticipantes ? "Cargando..." : "Consultar"}
+          </Button>
+          <Box sx={{ mt: 2, maxHeight: 300, overflowY: 'auto' }}>
+            {participantes.length > 0 ? (
+              <>
+                <Typography variant="subtitle1">Total: {participantes.length}</Typography>
+                <ul style={{ textAlign: 'left', margin: 0, padding: 0 }}>
+                  {participantes.map((p) => (
+                    <li key={p.id} style={{ marginBottom: 4 }}>
+                      {p.apellido}, {p.nombre} - {p.documento}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : torneoSel && !loadingParticipantes ? (
+              <Typography variant="body2">No hay participantes para este instructor en el torneo seleccionado.</Typography>
+            ) : null}
+          </Box>
+          <Button variant="outlined" sx={{ mt: 2 }} onClick={() => setModalParticipantes(false)}>Cerrar</Button>
         </Box>
-        <Button variant="outlined" sx={{ mt: 2 }} onClick={() => setModalParticipantes(false)}>Cerrar</Button>
-      </Box>
-    </Modal>
+      </Modal>
     </Box>
   );
 };

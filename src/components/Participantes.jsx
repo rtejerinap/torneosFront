@@ -1,7 +1,7 @@
-
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditParticipanteModal from "./EditParticipanteModal";
+import ParticipantesSimple from "./ParticipantesSimple";
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -13,8 +13,9 @@ import {
   Button,
   Modal,
   Paper,
-  IconButton,
-  Tooltip
+  Tooltip,
+  Tabs,
+  Tab
 } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { DataGrid } from "@mui/x-data-grid";
@@ -24,14 +25,10 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import LoadingSvg from "/src/components/loader/LoadingSvg";
 
-const AdminParticipantes = () => {
-  // Estado para paginación controlada de DataGrid (MUI X v6+)
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
-
 const API_BASE = import.meta.env.VITE_API_URL;
 
 const AdminParticipantes = () => {
-  // Selección múltiple y modal de asignación de instructor (deben ir dentro del componente)
+  const [mostrarOtros, setMostrarOtros] = useState(true);
   const [selectedRows, setSelectedRows] = useState([]);
   const [modalAsignar, setModalAsignar] = useState(false);
   const [instructorAsignar, setInstructorAsignar] = useState("");
@@ -44,7 +41,7 @@ const AdminParticipantes = () => {
   const [instructores, setInstructores] = useState([]);
   const [maestros, setMaestros] = useState([]);
   const [participantes, setParticipantes] = useState([]);
-  const [participantesRaw, setParticipantesRaw] = useState([]); // para filtrar en frontend
+  const [participantesRaw, setParticipantesRaw] = useState([]);
   const [pagados, setPagados] = useState({});
   const [filtros, setFiltros] = useState({
     torneoId: "",
@@ -64,12 +61,31 @@ const AdminParticipantes = () => {
   const [loading, setLoading] = useState(false);
   const [paises, setPaises] = useState([]);
   const [provincias, setProvincias] = useState([]);
+  const [provinciaId, setProvinciaId] = useState("");
   const { rol } = useAuth();
   const esAdmin = rol && (Array.isArray(rol) ? rol.includes("admin") : rol === "admin");
 
-  // Modal de confirmación de borrado
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [participanteAEliminar, setParticipanteAEliminar] = useState(null);
+  const [tab, setTab] = useState(0);
+
+  // ✅ paginación controlada (MUI v5)
+  const [pageSize, setPageSize] = useState(100);
+
+  // IDs estables (todo string) para el DataGrid
+  const normalizeId = (r, idx) => {
+    if (r?.id) return String(r.id);
+    if (r?._id) return String(r._id);
+    const composite = [
+      r?.apellido ?? "",
+      r?.nombre ?? "",
+      r?.documento ?? "",
+      r?.escuelaId ?? "",
+      r?.instructorId ?? "",
+      r?.maestroId ?? "",
+    ].join("|");
+    return composite || String(idx);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -81,32 +97,27 @@ const AdminParticipantes = () => {
           axios.get(`${API_BASE}/maestros`),
           axios.get(`${API_BASE}/paises`),
         ]);
-        setTorneos(torneosRes.data);
-        setEscuelas(escuelasRes.data);
-        setInstructores(instructoresRes.data);
-        setMaestros(maestrosRes.data);
-        setPaises(paisesRes.data);
+        setTorneos(torneosRes.data || []);
+        setEscuelas(escuelasRes.data || []);
+        setInstructores(instructoresRes.data || []);
+        setMaestros(maestrosRes.data || []);
+        setPaises(paisesRes.data || []);
       } catch (err) {
         console.error("Error al cargar datos", err);
+        setTorneos([]); setEscuelas([]); setInstructores([]); setMaestros([]); setPaises([]);
       }
     };
     fetchData();
   }, []);
 
   useEffect(() => {
-    if (filtros.paisId) {
-      axios.get(`${API_BASE}/provincias/pais/${filtros.paisId}`).then((res) => setProvincias(res.data));
-    } else {
-      setProvincias([]);
-    }
-  }, [filtros.paisId]);
+    axios.get(`${API_BASE}/provincias`).then((res) => setProvincias(res.data || [])).catch(() => setProvincias([]));
+  }, []);
 
-  // Filtros booleanos se aplican en tiempo real
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFiltros((f) => {
       const nuevos = { ...f, [name]: value };
-      // Si es filtro booleano o soloMaestros, filtrar en frontend
       if (["tul","lucha","equipos","coach","arbitro","autoridad_mesa","soloMaestros"].includes(name)) {
         aplicarFiltrosBooleanos(nuevos);
       }
@@ -114,7 +125,6 @@ const AdminParticipantes = () => {
     });
   };
 
-  // Aplica los filtros booleanos sobre participantesRaw
   const aplicarFiltrosBooleanos = (filtrosActuales) => {
     let filtrados = participantesRaw;
     const { tul, lucha, equipos, coach, arbitro, autoridad_mesa, soloMaestros } = filtrosActuales;
@@ -124,22 +134,12 @@ const AdminParticipantes = () => {
         filtrados = filtrados.filter(p => Boolean(p[key]) === (value === "true"));
       }
     });
-    // Filtro de solo maestros: solo los que tienen cinturón exactamente igual a 7º Dan - Negro, 8º Dan - Negro o 9º Dan - Negro
     if (soloMaestros === "true") {
-      const maestrosValidos = [
-        "7º Dan - Negro",
-        "8º Dan - Negro",
-        "9º Dan - Negro"
-      ];
-      filtrados = filtrados.filter(p =>
-        typeof p.cinturon === "string" && maestrosValidos.includes(p.cinturon.trim())
-      );
+      const maestrosValidos = ["7º Dan - Negro", "8º Dan - Negro", "9º Dan - Negro"];
+      filtrados = filtrados.filter(p => typeof p.cinturon === "string" && maestrosValidos.includes(p.cinturon.trim()));
     }
     setParticipantes(filtrados);
-    setPagados(filtrados.reduce((acc, p) => {
-      acc[p.id] = p.pagado || false;
-      return acc;
-    }, {}));
+    setPagados(filtrados.reduce((acc, p) => { acc[p.id] = p.pagado || false; return acc; }, {}));
   };
 
   const buscarParticipantes = async () => {
@@ -156,13 +156,19 @@ const AdminParticipantes = () => {
     } else {
       url = `${API_BASE}/participantes/torneo/${torneoId}`;
     }
+    if (provinciaId) {
+      url += `?provinciaId=${provinciaId}`;
+    }
 
     try {
       setLoading(true);
       const res = await axios.get(url);
-      setParticipantesRaw(res.data);
-      // Aplica los filtros booleanos actuales
-      let filtrados = res.data;
+      const rows = (res.data || []).filter(Boolean).map((p, idx) => ({ ...p, id: normalizeId(p, idx) }));
+
+      setParticipantesRaw(rows);
+
+      // Aplica filtros booleanos actuales
+      let filtrados = rows;
       const boolFields = { tul, lucha, equipos, coach, arbitro, autoridad_mesa };
       Object.entries(boolFields).forEach(([key, value]) => {
         if (value !== "") {
@@ -170,12 +176,10 @@ const AdminParticipantes = () => {
         }
       });
       setParticipantes(filtrados);
-      setPagados(filtrados.reduce((acc, p) => {
-        acc[p.id] = p.pagado || false;
-        return acc;
-      }, {}));
+      setPagados(filtrados.reduce((acc, p) => { acc[p.id] = p.pagado || false; return acc; }, {}));
     } catch (err) {
       console.error("Error al buscar participantes", err);
+      setParticipantes([]); setParticipantesRaw([]); setPagados({});
     } finally {
       setLoading(false);
     }
@@ -190,7 +194,6 @@ const AdminParticipantes = () => {
     const totalACobrar = total * precio;
     const deuda = totalACobrar - totalCobrado;
 
-    // Construir texto de filtros aplicados
     const filtrosAplicados = [];
     if (filtros.torneoId) filtrosAplicados.push(`Torneo: ${torneo}`);
     if (filtros.escuelaId) {
@@ -205,33 +208,58 @@ const AdminParticipantes = () => {
       const ma = maestros.find(m => m.id === filtros.maestroId);
       filtrosAplicados.push(`Maestro: ${ma ? ma.nombre + ' ' + ma.apellido : filtros.maestroId}`);
     }
+    if (provinciaId) {
+      const prov = provincias.find(p => p.id === provinciaId);
+      filtrosAplicados.push(`Provincia: ${prov ? prov.nombre : provinciaId}`);
+    }
     ["tul","lucha","equipos","coach","arbitro","autoridad_mesa"].forEach(campo => {
       if (filtros[campo] === "true") filtrosAplicados.push(`${campo.charAt(0).toUpperCase() + campo.slice(1)}: ✔️`);
       if (filtros[campo] === "false") filtrosAplicados.push(`${campo.charAt(0).toUpperCase() + campo.slice(1)}: ❌`);
     });
     if (filtros.soloMaestros === "true") filtrosAplicados.push("Solo Maestros: Sí");
 
-    // Columnas igual que la tabla, sin acciones
+    // Columnas PDF: base + Maestro + Instructor + otros si están visibles
     const columnasPDF = [
-      "Nombre", "Apellido", "Documento", "Peso (kg)", "Cinturón", "Otro Instructor", "Otro Maestro",
-      "Tul", "Lucha", "Equipos", "Coach", "Árbitro", "Mesa", "Pagado"
+      "Nombre", "Apellido", "Documento", "Peso (kg)", "Cinturón", "Maestro", "Instructor"
     ];
-    const bodyPDF = participantes.map((p) => [
-      p.nombre,
-      p.apellido,
-      p.documento,
-      p.peso,
-      p.cinturon,
-      p.otroInstructor,
-      p.otroMaestro,
-      p.tul ? "Sí" : "No",
-      p.lucha ? "Sí" : "No",
-      p.equipos ? "Sí" : "No",
-      p.coach ? "Sí" : "No",
-      p.arbitro ? "Sí" : "No",
-      p.autoridad_mesa ? "Sí" : "No",
-      pagados[p.id] ? "Sí" : "No"
-    ]);
+    if (mostrarOtros) {
+      columnasPDF.push("Otro Instructor", "Otro Maestro");
+    }
+    columnasPDF.push(
+      "Tul", "Lucha", "Equipos", "Coach", "Árbitro", "Mesa", "Pagado"
+    );
+
+    const bodyPDF = participantes.map((p) => {
+      const fila = [
+        p.nombre,
+        p.apellido,
+        p.documento,
+        p.peso,
+        p.cinturon,
+        // Maestro e Instructor: mostrar nombre completo si existe en maestros/instructores
+        (() => {
+          const ma = maestros.find(m => m.id === p.maestroId);
+          return ma ? `${ma.nombre} ${ma.apellido}` : (p.maestroId || "");
+        })(),
+        (() => {
+          const inst = instructores.find(i => i.id === p.instructorId);
+          return inst ? `${inst.nombre} ${inst.apellido}` : (p.instructorId || "");
+        })()
+      ];
+      if (mostrarOtros) {
+        fila.push(p.otroInstructor || "", p.otroMaestro || "");
+      }
+      fila.push(
+        p.tul ? "Sí" : "No",
+        p.lucha ? "Sí" : "No",
+        p.equipos ? "Sí" : "No",
+        p.coach ? "Sí" : "No",
+        p.arbitro ? "Sí" : "No",
+        p.autoridad_mesa ? "Sí" : "No",
+        pagados[p.id] ? "Sí" : "No"
+      );
+      return fila;
+    });
 
     const doc = new jsPDF({ orientation: "landscape" });
     const logo = new Image();
@@ -243,16 +271,11 @@ const AdminParticipantes = () => {
         doc.addImage(logo, 'PNG', 10, 8, 20, 20);
         doc.setFontSize(12);
         doc.text(`Participantes - ${torneo}`, 35, 15);
-        // Filtros aplicados, ordenados y claros
         if (filtrosAplicados.length > 0) {
           doc.setFontSize(10);
           let y = 23;
-          filtrosAplicados.forEach(f => {
-            doc.text(f, 35, y);
-            y += 6;
-          });
+          filtrosAplicados.forEach(f => { doc.text(f, 35, y); y += 6; });
         }
-        // Página
         const str = `Página ${doc.internal.getNumberOfPages()}` + (typeof doc.putTotalPages === 'function' ? ` de ${totalPagesExp}` : '');
         doc.setFontSize(10);
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
@@ -268,34 +291,31 @@ const AdminParticipantes = () => {
         didDrawPage: pageContent,
       });
 
-      // Totales en un solo renglón
       const finalY = doc.lastAutoTable.finalY || 40;
+      const total = participantes.length;
+      const precio = torneos.find(t => t.id === filtros.torneoId)?.precio || 0;
+      const totalPagado = participantes.filter(p => pagados[p.id]).length;
+      const totalCobrado = totalPagado * precio;
+      const totalACobrar = total * precio;
+      const deuda = totalACobrar - totalCobrado;
+
       doc.setFontSize(11);
       doc.text(
         `Total participantes: ${total}   |   Total a cobrar: $${totalACobrar}   |   Total cobrado: $${totalCobrado}   |   Deuda: $${deuda}`,
-        14,
-        finalY + 12
+        14, finalY + 12
       );
 
-      if (typeof doc.putTotalPages === 'function') {
-        doc.putTotalPages(totalPagesExp);
-      }
-
+      if (typeof doc.putTotalPages === 'function') doc.putTotalPages(totalPagesExp);
       doc.save("participantes.pdf");
     };
   };
 
-
-  const togglePagado = (id) => {
-    setPagados((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  const togglePagado = (id) => setPagados((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const toggleSeleccionarTodos = () => {
-    const allSelected = Object.values(pagados).every(Boolean);
+    const allSelected = participantes.length > 0 && participantes.every((p) => pagados[p.id]);
     const nuevosEstados = {};
-    participantes.forEach((p) => {
-      nuevosEstados[p.id] = !allSelected;
-    });
+    participantes.forEach((p) => { nuevosEstados[p.id] = !allSelected; });
     setPagados(nuevosEstados);
   };
 
@@ -319,47 +339,57 @@ const AdminParticipantes = () => {
   const deuda = totalACobrar - totalCobrado;
 
   const columnas = [
-    { field: "nombre", headerName: "Nombre", width: 120 },
-    { field: "apellido", headerName: "Apellido", width: 120 },
+    {
+      field: "nombre_apellido",
+      headerName: "Apellido, Nombre",
+      width: 180,
+      valueGetter: (params) => {
+        const apellido = params.row.apellido || "";
+        const nombre = params.row.nombre || "";
+        return `${apellido}, ${nombre}`.toUpperCase();
+      },
+    },
     { field: "documento", headerName: "Documento", width: 120 },
     { field: "peso", headerName: "Peso (kg)", width: 90 },
     { field: "cinturon", headerName: "Cinturón", width: 120 },
-    { field: "otroInstructor", headerName: "Otro Instructor", width: 140 },
-    { field: "otroMaestro", headerName: "Otro Maestro", width: 140 },
     {
-      field: "tul",
-      headerName: "Tul",
-      width: 70,
+      field: "maestroId",
+      headerName: "Maestro",
+      width: 140,
+      valueGetter: (params) => params.row.maestroId || "",
+    },
+    {
+      field: "instructorId",
+      headerName: "Instructor",
+      width: 140,
+      valueGetter: (params) => params.row.instructorId || "",
+    },
+    ...(mostrarOtros ? [
+      { field: "otroInstructor", headerName: "Otro Instructor", width: 140 },
+      { field: "otroMaestro", headerName: "Otro Maestro", width: 140 },
+    ] : []),
+    {
+      field: "tul", headerName: "Tul", width: 70,
       renderCell: (params) => params.row.tul ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
-      field: "lucha",
-      headerName: "Lucha",
-      width: 70,
+      field: "lucha", headerName: "Lucha", width: 70,
       renderCell: (params) => params.row.lucha ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
-      field: "equipos",
-      headerName: "Equipos",
-      width: 70,
+      field: "equipos", headerName: "Equipos", width: 70,
       renderCell: (params) => params.row.equipos ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
-      field: "coach",
-      headerName: "Coach",
-      width: 70,
+      field: "coach", headerName: "Coach", width: 70,
       renderCell: (params) => params.row.coach ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
-      field: "arbitro",
-      headerName: "Árbitro",
-      width: 70,
+      field: "arbitro", headerName: "Árbitro", width: 70,
       renderCell: (params) => params.row.arbitro ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
-      field: "autoridad_mesa",
-      headerName: "Mesa",
-      width: 70,
+      field: "autoridad_mesa", headerName: "Mesa", width: 70,
       renderCell: (params) => params.row.autoridad_mesa ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
@@ -404,10 +434,7 @@ const AdminParticipantes = () => {
                 variant="outlined"
                 size="small"
                 color="secondary"
-                onClick={() => {
-                  setEditParticipante(params.row);
-                  setEditOpen(true);
-                }}
+                onClick={() => { setEditParticipante(params.row); setEditOpen(true); }}
                 sx={{ minWidth: 0, p: 1 }}
                 aria-label="Editar participante"
               >
@@ -417,10 +444,7 @@ const AdminParticipantes = () => {
                 variant="outlined"
                 size="small"
                 color="error"
-                onClick={() => {
-                  setParticipanteAEliminar(params.row);
-                  setDeleteOpen(true);
-                }}
+                onClick={() => { setParticipanteAEliminar(params.row); setDeleteOpen(true); }}
                 sx={{ minWidth: 0, p: 1 }}
                 aria-label="Eliminar participante"
               >
@@ -432,7 +456,7 @@ const AdminParticipantes = () => {
       ),
     },
   ];
-  // Handler para eliminar participante
+
   const handleEliminarParticipante = async () => {
     if (!participanteAEliminar) return;
     try {
@@ -447,59 +471,35 @@ const AdminParticipantes = () => {
     }
   };
 
-  const abrirModal = (datos) => {
-    setDetalle(datos);
-    setModalOpen(true);
-  };
-
+  const abrirModal = (datos) => { setDetalle(datos); setModalOpen(true); };
   const cerrarModal = () => setModalOpen(false);
-  // ......................Exportarpdf.................
 
   const exportarDetallePDF = (participante) => {
     if (!participante) return;
-
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-
-    const logo = new Image();
-    logo.src = "/logo.png";
+    const logo = new Image(); logo.src = "/logo.png";
 
     logo.onload = () => {
-      // Calcular proporción del logo
       const maxLogoWidth = 80;
       const logoRatio = logo.height / logo.width;
       const logoWidth = maxLogoWidth;
       const logoHeight = logoWidth * logoRatio;
 
-      // Franja negra de fondo para el logo
       doc.setFillColor(0, 0, 0);
       doc.rect(0, 0, pageWidth, logoHeight + 10, "F");
+      doc.addImage(logo, "PNG", (pageWidth - logoWidth) / 2, 5, logoWidth, logoHeight);
 
-      // Logo centrado y proporcional
-      doc.addImage(
-        logo,
-        "PNG",
-        (pageWidth - logoWidth) / 2,
-        5,
-        logoWidth,
-        logoHeight
-      );
-
-      // Fondo blanco para datos
       const contentStartY = logoHeight + 20;
       doc.setFillColor(255, 255, 255);
       doc.rect(10, contentStartY, pageWidth - 20, pageHeight - contentStartY - 10, "F");
 
-      // Título principal: Torneo
       const torneoNombre = torneos.find(t => t.id === filtros.torneoId)?.nombre || "Torneo";
-      doc.setFontSize(30);
-      doc.setFont("helvetica", "bold");
+      doc.setFontSize(30); doc.setFont("helvetica", "bold");
       doc.text(torneoNombre, pageWidth / 2, contentStartY + 15, { align: "center" });
 
-      // Subtítulo: Participante
-      doc.setFontSize(35);
-      doc.setFont("helvetica", "bold");
+      doc.setFontSize(35); doc.setFont("helvetica", "bold");
       doc.text("Participante", pageWidth / 2, contentStartY + 30, { align: "center" });
 
       const data = [
@@ -512,9 +512,7 @@ const AdminParticipantes = () => {
       ];
 
       doc.setFontSize(16);
-      data.forEach((line, i) => {
-        doc.text(line, pageWidth / 2, contentStartY + 55 + i * 12, { align: "center" });
-      });
+      data.forEach((line, i) => { doc.text(line, pageWidth / 2, contentStartY + 55 + i * 12, { align: "center" }); });
 
       if (participante.qr) {
         toDataURL(participante.qr, (base64Img) => {
@@ -527,386 +525,195 @@ const AdminParticipantes = () => {
     };
   };
 
-
   const toDataURL = (url, callback) => {
     const xhr = new XMLHttpRequest();
     xhr.onload = function () {
       const reader = new FileReader();
-      reader.onloadend = function () {
-        callback(reader.result);
-      };
+      reader.onloadend = function () { callback(reader.result); };
       reader.readAsDataURL(xhr.response);
     };
-    xhr.onerror = function () {
-      alert("No se pudo cargar el QR para el PDF.");
-    };
-    xhr.open("GET", url);
-    xhr.responseType = "blob";
-    xhr.send();
+    xhr.onerror = function () { alert("No se pudo cargar el QR para el PDF."); };
+    xhr.open("GET", url); xhr.responseType = "blob"; xhr.send();
   };
 
   return (
     <Box>
-      {loading && <LoadingSvg />}
-      <Typography variant="h5" gutterBottom>
-        Gestión de Participantes
-      </Typography>
-      {/* Filtros principales */}
-      <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-        <Grid item xs={12} sm={4}>
-          <TextField
-            select
-            fullWidth
-            sx={{ minWidth: 100 }}
-            name="torneoId"
-            label="Torneo"
-            value={filtros.torneoId}
-            onChange={handleChange}
-          >
-            {torneos.map((t) => (
-              <MenuItem key={t.id} value={t.id}>
-                {`${t.nombre} - ${t.fecha}`}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <TextField
-            select
-            fullWidth
-            sx={{ minWidth: 100 }}
-            name="escuelaId"
-            label="Escuela"
-            value={filtros.escuelaId}
-            onChange={handleChange}
-            disabled={filtros.instructorId || filtros.maestroId}
-          >
-            <MenuItem value="">Ninguna</MenuItem>
-            {escuelas.map((e) => (
-              <MenuItem key={e.id} value={e.id}>
-                {`${e.nombre}, ${e.ciudad}`}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <TextField
-            select
-            fullWidth
-            sx={{ minWidth: 100 }}
-            name="instructorId"
-            label="Instructor"
-            value={filtros.instructorId}
-            onChange={handleChange}
-            disabled={filtros.escuelaId || filtros.maestroId}
-          >
-            <MenuItem value="">Ninguno</MenuItem>
-            {instructores.map((i) => (
-              <MenuItem key={i.id} value={i.id}>
-                {`${i.nombre} ${i.apellido}`}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <TextField
-            select
-            fullWidth
-            sx={{ minWidth: 100 }}
-            name="maestroId"
-            label="Maestro"
-            value={filtros.maestroId}
-            onChange={handleChange}
-            disabled={filtros.escuelaId || filtros.instructorId}
-          >
-            <MenuItem value="">Ninguno</MenuItem>
-            {maestros.map((m) => (
-              <MenuItem key={m.id} value={m.id}>
-                {`${m.nombre} ${m.apellido}`}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
-        <Grid item xs={12} sm={2}>
-          <Button
-            variant="contained"
-            color="primary"
-            fullWidth
-            onClick={buscarParticipantes}
-          >
-            Buscar
-          </Button>
-        </Grid>
-        <Grid item xs={12} sm={2}>
-          <Button
-            variant="outlined"
-            color="secondary"
-            fullWidth
-            onClick={exportarPDF}
-            disabled={participantes.length === 0}
-          >
-            Exportar PDF
-          </Button>
-        </Grid>
-        <Grid item xs={12} sm={2}>
-          <Button
-            variant="contained"
-            color="success"
-            fullWidth
-            onClick={actualizarPagados}
-            disabled={participantes.length === 0}
-          >
-            Actualizar cobro
-          </Button>
-        </Grid>
-      </Grid>
-      {/* Sección de deuda */}
-      <Box sx={{ mb: 2 }}>
-        <Typography>Total a cobrar: ${totalACobrar}</Typography>
-        <Typography>Total cobrado: ${totalCobrado}</Typography>
-        <Typography>Deuda: ${deuda}</Typography>
-      </Box>
-      {/* Filtros booleanos en un renglón aparte debajo de la deuda */}
-      <Box sx={{ mb: 2, mt: 1 }}>
-        <Grid container spacing={2} alignItems="center">
-          {["tul", "lucha", "equipos", "coach", "arbitro", "autoridad_mesa"].map((campo) => (
-            <Grid item xs={12} sm={2} key={campo}>
-              <TextField
-                select
-                fullWidth
-                sx={{ minWidth: 150 }}
-                name={campo}
-                label={campo.charAt(0).toUpperCase() + campo.slice(1)}
-                value={filtros[campo]}
-                onChange={handleChange}
-              >
-                <MenuItem value="">Todos</MenuItem>
-                <MenuItem value="true">✔️</MenuItem>
-                <MenuItem value="false">❌</MenuItem>
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+        <Tab label="Gestión completa" />
+        <Tab label="Asignar instructor (simple)" />
+      </Tabs>
+
+      {tab === 0 && (
+        <Box>
+          <Box sx={{ mb: 2 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setMostrarOtros((v) => !v)}
+            >
+              {mostrarOtros ? "Ocultar 'Otro Maestro' y 'Otro Instructor'" : "Mostrar 'Otro Maestro' y 'Otro Instructor'"}
+            </Button>
+          </Box>
+          {loading && <LoadingSvg />}
+          <Typography variant="h5" gutterBottom>Gestión de Participantes</Typography>
+
+          {/* Filtros */}
+          <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
+            <Grid item xs={12} sm={3}>
+              <TextField select fullWidth name="torneoId" label="Torneo" value={filtros.torneoId} onChange={handleChange}>
+                {torneos.map((t) => (
+                  <MenuItem key={t.id} value={t.id}>{`${t.nombre} - ${t.fecha}`}</MenuItem>
+                ))}
               </TextField>
             </Grid>
-          ))}
-          {/* Filtro solo maestros */}
-          <Grid item xs={12} sm={2} key="soloMaestros">
-            <TextField
-              select
-              fullWidth
-              sx={{ minWidth: 120 }}
-              name="soloMaestros"
-              label="Solo Maestros"
-              value={filtros.soloMaestros}
-              onChange={handleChange}
-            >
-              <MenuItem value="">Todos</MenuItem>
-              <MenuItem value="true">Solo Maestros</MenuItem>
-            </TextField>
+            <Grid item xs={12} sm={3}>
+              <TextField select fullWidth label="Provincia" value={provinciaId} onChange={e => setProvinciaId(e.target.value)}>
+                <MenuItem value="">Todas</MenuItem>
+                {provincias.map((prov) => (<MenuItem key={prov.id} value={prov.id}>{prov.nombre}</MenuItem>))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField select fullWidth name="escuelaId" label="Escuela" value={filtros.escuelaId} onChange={handleChange} disabled={filtros.instructorId || filtros.maestroId}>
+                <MenuItem value="">Ninguna</MenuItem>
+                {escuelas.map((e) => (<MenuItem key={e.id} value={e.id}>{`${e.nombre}, ${e.ciudad}`}</MenuItem>))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField select fullWidth name="instructorId" label="Instructor" value={filtros.instructorId} onChange={handleChange} disabled={filtros.escuelaId || filtros.maestroId}>
+                <MenuItem value="">Ninguno</MenuItem>
+                {instructores.map((i) => (<MenuItem key={i.id} value={i.id}>{`${i.nombre} ${i.apellido}`}</MenuItem>))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField select fullWidth name="maestroId" label="Maestro" value={filtros.maestroId} onChange={handleChange} disabled={filtros.escuelaId || filtros.instructorId}>
+                <MenuItem value="">Ninguno</MenuItem>
+                {maestros.map((m) => (<MenuItem key={m.id} value={m.id}>{`${m.nombre} ${m.apellido}`}</MenuItem>))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={2}>
+              <Button variant="contained" color="primary" fullWidth onClick={buscarParticipantes}>Buscar</Button>
+            </Grid>
+            <Grid item xs={12} sm={2}>
+              <Button variant="outlined" color="secondary" fullWidth onClick={exportarPDF} disabled={participantes.length === 0}>Exportar PDF</Button>
+            </Grid>
+            <Grid item xs={12} sm={2}>
+              <Button variant="contained" color="success" fullWidth onClick={actualizarPagados} disabled={participantes.length === 0}>Actualizar cobro</Button>
+            </Grid>
           </Grid>
-        </Grid>
-      </Box>
-      {/* Barra de acciones sobre la grilla */}
-      <Box display="flex" alignItems="center" justifyContent="flex-end" mb={1} gap={2}>
-        <Tooltip title="Asignar participantes seleccionados a otro instructor">
-          <span>
-            <IconButton
-              color="success"
-              disabled={selectedRows.length === 0}
-              onClick={() => setModalAsignar(true)}
-              aria-label="Asignar a instructor"
-              size="large"
-            >
-              <ArrowForwardIcon fontSize="large" />
-            </IconButton>
-          </span>
-        </Tooltip>
-      </Box>
-      <Paper sx={{ height: 500 }}>
-        <DataGrid
-          rows={participantes.map((p) => ({ id: p.id, ...p }))}
-          columns={columnas}
-          pagination
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[10, 20, 50, 100]}
-          checkboxSelection
-          onRowSelectionModelChange={(ids) => setSelectedRows(ids)}
-          rowSelectionModel={selectedRows}
-        />
-      </Paper>
-      {/* Modal para asignar participantes seleccionados a otro instructor */}
-      <Modal open={modalAsignar} onClose={() => { setModalAsignar(false); setInstructorAsignar(""); setAsignarMsg(""); }}>
-        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', bgcolor: '#fff', color: '#000', boxShadow: 24, borderRadius: 2, minWidth: 350, maxWidth: 500, p: 3, textAlign: 'center' }}>
-          <Typography variant="h6" gutterBottom>Asignar participantes seleccionados a otro instructor</Typography>
-          <TextField
-            select
-            label="Instructor destino"
-            value={instructorAsignar}
-            onChange={e => setInstructorAsignar(e.target.value)}
-            sx={{ minWidth: 250, mb: 2 }}
-          >
-            <MenuItem value="">Seleccione un instructor</MenuItem>
-            {instructores.map((i) => (
-              <MenuItem key={i.id} value={i.id}>{`${i.apellido}, ${i.nombre} (${i.graduacion || ''})`}</MenuItem>
-            ))}
-          </TextField>
-          <Box>
-            <Button
-              variant="contained"
-              color="success"
-              disabled={!instructorAsignar || asignando}
-              onClick={async () => {
-                setAsignando(true);
-                setAsignarMsg("");
-                try {
-                  // Llamar endpoint con los participantes seleccionados (selectedRows) y el instructor destino
-                  await axios.put(`${API_BASE}/participantes/asignar-instructor-limpiar-otro`, {
-                    participanteIds: selectedRows,
-                    instructorId: instructorAsignar
-                  });
-                  setAsignarMsg("Participantes asignados correctamente.");
-                  // Refrescar participantes
-                  buscarParticipantes();
-                  setSelectedRows([]);
-                } catch (err) {
-                  setAsignarMsg("Error al asignar participantes.");
-                } finally {
-                  setAsignando(false);
-                }
-              }}
-              sx={{ mr: 2 }}
-            >
-              {asignando ? "Asignando..." : "Asignar"}
-            </Button>
-            <Button variant="outlined" onClick={() => { setModalAsignar(false); setInstructorAsignar(""); setAsignarMsg(""); }} disabled={asignando}>Cancelar</Button>
+
+          {/* Resumen */}
+          <Box sx={{ mb: 2 }}>
+            <Typography>Total a cobrar: ${totalACobrar}</Typography>
+            <Typography>Total cobrado: ${totalCobrado}</Typography>
+            <Typography>Deuda: ${deuda}</Typography>
           </Box>
-          {asignarMsg && <Typography sx={{ mt: 2 }} color={asignarMsg.startsWith("Error") ? "error" : "success.main"}>{asignarMsg}</Typography>}
-        </Box>
-      </Modal>
-      <Modal open={modalOpen} onClose={cerrarModal}>
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            bgcolor: "#2c2c2c", // gris oscuro
-            color: "white",
-            boxShadow: 24,
-            borderRadius: 2,
-            minWidth: 350,
-            maxWidth: 500,
-            overflow: "hidden",
-            fontFamily: "Arial, sans-serif",
-          }}
-        >
-          {/* Zona del logo con fondo negro */}
-          <Box sx={{ bgcolor: "#000", textAlign: "center", p: 2 }}>
-            <img
-              src="/logo.png"
-              alt="Logo"
-              style={{
-                maxWidth: "100%",
-                height: "auto",
-                maxHeight: 80,
-                objectFit: "contain"
-              }}
+
+          {/* Filtros booleanos */}
+          <Box sx={{ mb: 2, mt: 1 }}>
+            <Grid container spacing={2} alignItems="center">
+              {["tul","lucha","equipos","coach","arbitro","autoridad_mesa"].map((campo) => (
+                <Grid item xs={12} sm={2} key={campo}>
+                  <TextField select fullWidth name={campo} label={campo.charAt(0).toUpperCase() + campo.slice(1)} value={filtros[campo]} onChange={handleChange}>
+                    <MenuItem value="">Todos</MenuItem>
+                    <MenuItem value="true">✔️</MenuItem>
+                    <MenuItem value="false">❌</MenuItem>
+                  </TextField>
+                </Grid>
+              ))}
+              <Grid item xs={12} sm={2} key="soloMaestros">
+                <TextField select fullWidth name="soloMaestros" label="Solo Maestros" value={filtros.soloMaestros} onChange={handleChange}>
+                  <MenuItem value="">Todos</MenuItem>
+                  <MenuItem value="true">Solo Maestros</MenuItem>
+                </TextField>
+              </Grid>
+            </Grid>
+          </Box>
+
+          {/* Grid */}
+          <Paper sx={{ mb: 2 }}>
+            <DataGrid
+              autoHeight
+              rows={participantes}
+              columns={columnas}
+              getRowId={(row) => row.id}
+              // ✅ paginado MUI v5
+              pageSize={pageSize}
+              rowsPerPageOptions={[10, 20, 50]}
+              onPageSizeChange={(newSize) => setPageSize(Number(newSize))}
+              pagination
+              hideFooterSelectedRowCount
             />
-          </Box>
+          </Paper>
 
-          {/* Zona de datos con fondo blanco */}
-          <Box sx={{ bgcolor: "#fff", color: "#000", textAlign: "center", p: 3 }}>
-            {detalle && (
-              <>
-              <Typography variant="h4" gutterBottom>
-   {torneos.find(t => t.id === filtros.torneoId)?.nombre || "No seleccionado"}
-</Typography>
-
-                <Typography variant="h3" gutterBottom>
-                  Participante
-                </Typography>
-                <Typography fontSize={18}>Nombre: {detalle.nombre}</Typography>
-                <Typography fontSize={18}>Apellido: {detalle.apellido}</Typography>
-                <Typography fontSize={18}>Documento: {detalle.documento}</Typography>
-                <Typography fontSize={18}>Fecha Nac: {detalle.fechaNacimiento}</Typography>
-                <Typography fontSize={18}>Peso: {detalle.peso} kg</Typography>
-                <Typography fontSize={18}>Cinturón: {detalle.cinturon}</Typography>
-
-                {detalle.qr && (
-                  <Box mt={2}>
-                    <Typography variant="h6">Código QR</Typography>
-                    <img
-                      src={detalle.qr}
-                      alt="QR Participante"
-                      style={{ width: 150, marginTop: 10 }}
-                    />
-                  </Box>
+          {/* Modal detalle */}
+          <Modal open={modalOpen} onClose={cerrarModal}>
+            <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", bgcolor: "#2c2c2c", color: "white", boxShadow: 24, borderRadius: 2, minWidth: 350, maxWidth: 500, overflow: "hidden", fontFamily: "Arial, sans-serif" }}>
+              <Box sx={{ bgcolor: "#000", textAlign: "center", p: 2 }}>
+                <img src="/logo.png" alt="Logo" style={{ maxWidth: "100%", height: "auto", maxHeight: 80, objectFit: "contain" }}/>
+              </Box>
+              <Box sx={{ bgcolor: "#fff", color: "#000", textAlign: "center", p: 3 }}>
+                {detalle && (
+                  <>
+                    <Typography variant="h4" gutterBottom>
+                      {torneos.find(t => t.id === filtros.torneoId)?.nombre || "No seleccionado"}
+                    </Typography>
+                    <Typography variant="h3" gutterBottom>Participante</Typography>
+                    <Typography fontSize={18}>Nombre: {detalle.nombre}</Typography>
+                    <Typography fontSize={18}>Apellido: {detalle.apellido}</Typography>
+                    <Typography fontSize={18}>Documento: {detalle.documento}</Typography>
+                    <Typography fontSize={18}>Fecha Nac: {detalle.fechaNacimiento}</Typography>
+                    <Typography fontSize={18}>Peso: {detalle.peso} kg</Typography>
+                    <Typography fontSize={18}>Cinturón: {detalle.cinturon}</Typography>
+                    {detalle.qr && (
+                      <Box mt={2}>
+                        <Typography variant="h6">Código QR</Typography>
+                        <img src={detalle.qr} alt="QR Participante" style={{ width: 150, marginTop: 10 }}/>
+                      </Box>
+                    )}
+                    <Button variant="contained" fullWidth sx={{ mt: 3 }} onClick={() => exportarDetallePDF(detalle)}>
+                      Exportar a PDF
+                    </Button>
+                  </>
                 )}
-                <Button
-                  variant="contained"
-                  fullWidth
-                  sx={{ mt: 3 }}
-                  onClick={() => exportarDetallePDF(detalle)}
-                >
-                  Exportar a PDF
-                </Button>
-              </>
-            )}
-          </Box>
+              </Box>
+            </Box>
+          </Modal>
+
+          {/* Modal edición */}
+          <EditParticipanteModal
+            open={editOpen}
+            onClose={() => setEditOpen(false)}
+            participante={editParticipante}
+            onUpdated={buscarParticipantes}
+            torneos={torneos}
+            paises={paises}
+            provincias={provincias}
+            escuelas={escuelas}
+            instructores={instructores}
+            maestros={maestros}
+          />
+
+          {/* Modal elimina */}
+          <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)}>
+            <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", bgcolor: "#fff", color: "#000", boxShadow: 24, borderRadius: 2, minWidth: 350, maxWidth: 400, p: 3, textAlign: "center" }}>
+              <Typography variant="h6" gutterBottom>¿Seguro que deseas eliminar este participante?</Typography>
+              <Typography fontSize={18} sx={{ mb: 2 }}>{participanteAEliminar?.nombre} {participanteAEliminar?.apellido}</Typography>
+              <Box display="flex" justifyContent="center" gap={2}>
+                <Button variant="contained" color="error" onClick={handleEliminarParticipante}>Eliminar</Button>
+                <Button variant="outlined" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
+              </Box>
+            </Box>
+          </Modal>
         </Box>
-      </Modal>
+      )}
 
-      {/* Modal de edición de participante */}
-      <EditParticipanteModal
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        participante={editParticipante}
-        onUpdated={buscarParticipantes}
-        torneos={torneos}
-        paises={paises}
-        provincias={provincias}
-        escuelas={escuelas}
-        instructores={instructores}
-        maestros={maestros}
-      />
-
-      {/* Modal de confirmación de borrado */}
-      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)}>
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            bgcolor: "#fff",
-            color: "#000",
-            boxShadow: 24,
-            borderRadius: 2,
-            minWidth: 350,
-            maxWidth: 400,
-            p: 3,
-            textAlign: "center"
-          }}
-        >
-          <Typography variant="h6" gutterBottom>
-            ¿Seguro que deseas eliminar este participante?
-          </Typography>
-          <Typography fontSize={18} sx={{ mb: 2 }}>
-            {participanteAEliminar?.nombre} {participanteAEliminar?.apellido}
-          </Typography>
-          <Box display="flex" justifyContent="center" gap={2}>
-            <Button variant="contained" color="error" onClick={handleEliminarParticipante}>
-              Eliminar
-            </Button>
-            <Button variant="outlined" onClick={() => setDeleteOpen(false)}>
-              Cancelar
-            </Button>
-          </Box>
+      {tab === 1 && (
+        <Box>
+          <ParticipantesSimple torneoId={filtros.torneoId} />
         </Box>
-      </Modal>
-
-
-
+      )}
     </Box>
   );
 };
-}
+
 export default AdminParticipantes;

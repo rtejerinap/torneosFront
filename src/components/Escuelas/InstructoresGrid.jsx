@@ -8,6 +8,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SearchIcon from "@mui/icons-material/Search";
 import LoadingSvg from "../loader/LoadingSvg";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
@@ -24,6 +26,7 @@ const style = {
 };
 
 const InstructoresGrid = () => {
+  // Estados principales
   const [instructores, setInstructores] = useState([]);
   const [maestros, setMaestros] = useState([]);
   const [paises, setPaises] = useState([]);
@@ -34,15 +37,85 @@ const InstructoresGrid = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState('view');
   const [loading, setLoading] = useState(true);
-
   const [modalParticipantes, setModalParticipantes] = useState(false);
   const [participantes, setParticipantes] = useState([]);
   const [torneoSel, setTorneoSel] = useState("");
   const [torneos, setTorneos] = useState([]);
   const [loadingParticipantes, setLoadingParticipantes] = useState(false);
+  const [pageSize, setPageSize] = useState(50);
 
-  // ✅ paginación controlada (v5)
-  const [pageSize, setPageSize] = useState(8);
+  // Filtros
+  const [filtroMaestro, setFiltroMaestro] = useState("");
+  const [filtroProvincia, setFiltroProvincia] = useState("");
+
+  // Filtrar instructores según maestro y provincia
+  const instructoresFiltrados = instructores.filter(i => {
+    let ok = true;
+    if (filtroMaestro) ok = ok && i.maestroId === filtroMaestro;
+    if (filtroProvincia) ok = ok && i.provinciaId === filtroProvincia;
+    return ok;
+  });
+
+  // Exportar PDF respetando filtros y formato
+  function exportarPDF() {
+    const doc = new jsPDF({ orientation: "portrait" });
+    const logo = new Image();
+    logo.src = "/logo.png";
+
+    // Columnas igual que la tabla
+    const columnasPDF = [
+      "Apellido, Nombre", "Graduación", "País", "Provincia", "Maestro"
+    ];
+    const bodyPDF = instructoresFiltrados.map((i) => [
+      `${(i.apellido || "")}, ${(i.nombre || "")}`.toUpperCase(),
+      i.graduacion,
+      (() => {
+        const p = paises.find(pais => pais.id === i.paisId);
+        return p ? p.nombre : i.paisId || "";
+      })(),
+      (() => {
+        const prov = provincias.find(pr => pr.id === i.provinciaId);
+        return prov ? prov.nombre : i.provinciaId || "";
+      })(),
+      (() => {
+        const m = maestros.find(maestro => maestro.id === i.maestroId);
+        return m ? `${m.apellido}, ${m.nombre} (${m.graduacion})` : i.maestroId || "";
+      })()
+    ]);
+
+    logo.onload = () => {
+      const filtrosAplicados = [];
+      if (filtroMaestro) {
+        const m = maestros.find(maestro => maestro.id === filtroMaestro);
+        filtrosAplicados.push(`Maestro: ${m ? `${m.apellido}, ${m.nombre} (${m.graduacion})` : filtroMaestro}`);
+      }
+      if (filtroProvincia) {
+        const p = provincias.find(prov => prov.id === filtroProvincia);
+        filtrosAplicados.push(`Provincia: ${p ? p.nombre : filtroProvincia}`);
+      }
+
+      autoTable(doc, {
+        margin: { top: 40 },
+        head: [columnasPDF],
+        body: bodyPDF,
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [22, 160, 133] },
+        didDrawPage: function (data) {
+          doc.addImage(logo, 'PNG', 10, 8, 20, 20);
+          doc.setFontSize(13);
+          doc.text('Listado de Instructores', 35, 15);
+          if (filtrosAplicados.length > 0) {
+            doc.setFontSize(10);
+            let y = 23;
+            filtrosAplicados.forEach(f => { doc.text(f, 35, y); y += 6; });
+          }
+        }
+      });
+      doc.save("instructores.pdf");
+    };
+    // Si la imagen ya está cargada, disparar el evento manualmente
+    if (logo.complete) logo.onload();
+  }
 
   // Normalizador de ID estable (sin Math.random)
   const normalizeId = (r, idx) => {
@@ -190,8 +263,17 @@ const InstructoresGrid = () => {
   };
 
   const columns = [
-    { field: "apellido", headerName: "Apellido", flex: 1 },
-    { field: "nombre", headerName: "Nombre", flex: 1 },
+    {
+      field: "nombreCompleto",
+      headerName: "Apellido, Nombre",
+      flex: 1.5,
+      valueGetter: (params) => {
+        const apellido = params.row.apellido || "";
+        const nombre = params.row.nombre || "";
+        return `${apellido}, ${nombre}`.toUpperCase();
+      },
+      renderCell: (params) => <span>{params.value}</span>
+    },
     { field: "graduacion", headerName: "Graduación", flex: 1 },
     {
       field: "paisId",
@@ -257,30 +339,51 @@ const InstructoresGrid = () => {
 
   return (
     <Box sx={{ width: '100%', mt: 2 }}>
+      {/* Filtros y export */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+        <TextField
+          select
+          label="Filtrar por Maestro"
+          value={filtroMaestro}
+          onChange={e => setFiltroMaestro(e.target.value)}
+          sx={{ minWidth: 220 }}
+        >
+          <MenuItem value="">Todos</MenuItem>
+          {maestros.map(m => (
+            <MenuItem key={m.id} value={m.id}>{`${m.apellido}, ${m.nombre} (${m.graduacion})`}</MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          label="Filtrar por Provincia"
+          value={filtroProvincia}
+          onChange={e => setFiltroProvincia(e.target.value)}
+          sx={{ minWidth: 180 }}
+        >
+          <MenuItem value="">Todas</MenuItem>
+          {provincias.map(p => (
+            <MenuItem key={p.id} value={p.id}>{p.nombre}</MenuItem>
+          ))}
+        </TextField>
+        <Button variant="outlined" color="secondary" onClick={exportarPDF} sx={{ ml: 2 }}>Exportar PDF</Button>
+      </Box>
       {loading ? (
         <LoadingSvg />
       ) : (
         <DataGrid
           autoHeight
-          rows={Array.isArray(instructores) ? instructores : []}
+          rows={Array.isArray(instructoresFiltrados) ? instructoresFiltrados : []}
           columns={columns}
-
-          // ✅ paginación (v5 controlada)
           pageSize={pageSize}
           rowsPerPageOptions={[8, 20, 50, 100]}
           onPageSizeChange={(newPageSize) => setPageSize(newPageSize)}
           pagination
-
-          // IDs estables
           getRowId={(row) => row.id}
-
-          // v5
           disableSelectionOnClick
-          // Evita problemas en footer con selección (si lo tuvieras)
           hideFooterSelectedRowCount
         />
       )}
-
+      {/* Modal detalle y edición */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
         <Box sx={style}>
           {modalType === 'view' && selected && (

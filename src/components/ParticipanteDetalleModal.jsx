@@ -150,7 +150,17 @@ const ParticipanteDetalleModal = ({ open, onClose, participanteId, torneoNombre 
               <Typography fontSize={18}>Nombre: {detalle.nombre}</Typography>
               <Typography fontSize={18}>Apellido: {detalle.apellido}</Typography>
               <Typography fontSize={18}>Documento: {detalle.documento}</Typography>
-              <Typography fontSize={18}>Fecha Nac: {detalle.fechaNacimiento}</Typography>
+              <Typography fontSize={18}>Fecha Nac: {detalle.fechaNacimiento} ({(() => {
+                if (!detalle.fechaNacimiento) return "";
+                const hoy = new Date();
+                const cumple = new Date(detalle.fechaNacimiento);
+                let edad = hoy.getFullYear() - cumple.getFullYear();
+                const m = hoy.getMonth() - cumple.getMonth();
+                if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) {
+                  edad--;
+                }
+                return `${edad} años`;
+              })()})</Typography>
               <Typography fontSize={18}>Peso: {detalle.peso} kg</Typography>
               <Typography fontSize={18}>Cinturón: {detalle.cinturon}</Typography>
               {detalle.qr && (

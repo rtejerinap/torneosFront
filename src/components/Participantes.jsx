@@ -4,6 +4,7 @@ import EditParticipanteModal from "./EditParticipanteModal";
 import ParticipanteDetalleModal from "./ParticipanteDetalleModal";
 import ParticipantesSimple from "./ParticipantesSimple";
 import React, { useEffect, useState } from "react";
+import dayjs from "dayjs";
 import { useAuth } from "../context/AuthContext";
 import {
   Box,
@@ -53,9 +54,11 @@ const AdminParticipantes = () => {
     lucha: "",
     equipos: "",
     coach: "",
+    juez: "",
     arbitro: "",
     autoridad_mesa: "",
-    soloMaestros: ""
+    soloMaestros: "",
+    rangoEdad: ""
   });
   const [modalOpen, setModalOpen] = useState(false);
   const [detalle, setDetalle] = useState(null);
@@ -119,22 +122,43 @@ const AdminParticipantes = () => {
     const { name, value } = e.target;
     setFiltros((f) => {
       const nuevos = { ...f, [name]: value };
-      if (["tul","lucha","equipos","coach","arbitro","autoridad_mesa","soloMaestros"].includes(name)) {
+      if (["tul","lucha","equipos","coach","juez","arbitro","autoridad_mesa","soloMaestros","rangoEdad"].includes(name)) {
         aplicarFiltrosBooleanos(nuevos);
       }
       return nuevos;
     });
   };
 
+  const calcularEdad = (fechaNacimiento) => {
+    if (!fechaNacimiento) return null;
+    const hoy = dayjs();
+    const nacimiento = dayjs(fechaNacimiento);
+    return hoy.diff(nacimiento, "year");
+  };
+
   const aplicarFiltrosBooleanos = (filtrosActuales) => {
     let filtrados = participantesRaw;
-    const { tul, lucha, equipos, coach, arbitro, autoridad_mesa, soloMaestros } = filtrosActuales;
-    const boolFields = { tul, lucha, equipos, coach, arbitro, autoridad_mesa };
+    const { tul, lucha, equipos, coach, juez, arbitro, autoridad_mesa, soloMaestros, rangoEdad } = filtrosActuales;
+    const boolFields = { tul, lucha, equipos, coach, juez, arbitro, autoridad_mesa };
     Object.entries(boolFields).forEach(([key, value]) => {
       if (value !== "") {
         filtrados = filtrados.filter(p => Boolean(p[key]) === (value === "true"));
       }
     });
+    if (rangoEdad && rangoEdad !== "") {
+      filtrados = filtrados.filter(p => {
+        const edad = calcularEdad(p.fechaNacimiento);
+        switch (rangoEdad) {
+          case "5-13": return edad >= 5 && edad <= 13;
+          case "14-15": return edad >= 14 && edad <= 15;
+          case "16-17": return edad >= 16 && edad <= 17;
+          case "18-34": return edad >= 18 && edad <= 34;
+          case "35-44": return edad >= 35 && edad <= 44;
+          case "45-59": return edad >= 45 && edad <= 59;
+          default: return true;
+        }
+      });
+    }
     if (soloMaestros === "true") {
       const maestrosValidos = ["7º Dan - Negro", "8º Dan - Negro", "9º Dan - Negro"];
       filtrados = filtrados.filter(p => typeof p.cinturon === "string" && maestrosValidos.includes(p.cinturon.trim()));
@@ -144,7 +168,7 @@ const AdminParticipantes = () => {
   };
 
   const buscarParticipantes = async () => {
-    const { torneoId, escuelaId, instructorId, maestroId, tul, lucha, equipos, coach, arbitro, autoridad_mesa } = filtros;
+  const { torneoId, escuelaId, instructorId, maestroId, tul, lucha, equipos, coach, juez, arbitro, autoridad_mesa, rangoEdad } = filtros;
     if (!torneoId) return;
 
     let url = '';
@@ -168,14 +192,28 @@ const AdminParticipantes = () => {
 
       setParticipantesRaw(rows);
 
-      // Aplica filtros booleanos actuales
+      // Aplica filtros booleanos y de rango de edad
       let filtrados = rows;
-      const boolFields = { tul, lucha, equipos, coach, arbitro, autoridad_mesa };
+      const boolFields = { tul, lucha, equipos, coach, juez, arbitro, autoridad_mesa };
       Object.entries(boolFields).forEach(([key, value]) => {
         if (value !== "") {
           filtrados = filtrados.filter(p => Boolean(p[key]) === (value === "true"));
         }
       });
+      if (rangoEdad) {
+        filtrados = filtrados.filter(p => {
+          const edad = calcularEdad(p.fechaNacimiento);
+          switch (rangoEdad) {
+            case "5-13": return edad >= 5 && edad <= 13;
+            case "14-15": return edad >= 14 && edad <= 15;
+            case "16-17": return edad >= 16 && edad <= 17;
+            case "18-34": return edad >= 18 && edad <= 34;
+            case "35-44": return edad >= 35 && edad <= 44;
+            case "45-59": return edad >= 45 && edad <= 59;
+            default: return true;
+          }
+        });
+      }
       setParticipantes(filtrados);
       setPagados(filtrados.reduce((acc, p) => { acc[p.id] = p.pagado || false; return acc; }, {}));
     } catch (err) {
@@ -213,15 +251,15 @@ const AdminParticipantes = () => {
       const prov = provincias.find(p => p.id === provinciaId);
       filtrosAplicados.push(`Provincia: ${prov ? prov.nombre : provinciaId}`);
     }
-    ["tul","lucha","equipos","coach","arbitro","autoridad_mesa"].forEach(campo => {
-      if (filtros[campo] === "true") filtrosAplicados.push(`${campo.charAt(0).toUpperCase() + campo.slice(1)}: ✔️`);
-      if (filtros[campo] === "false") filtrosAplicados.push(`${campo.charAt(0).toUpperCase() + campo.slice(1)}: ❌`);
+    ["tul","lucha","equipos","coach","juez","arbitro","autoridad_mesa"].forEach(campo => {
+      if (filtros[campo] === "true") filtrosAplicados.push(`${campo.charAt(0).toUpperCase() + campo.slice(1)}: Sí`);
+      if (filtros[campo] === "false") filtrosAplicados.push(`${campo.charAt(0).toUpperCase() + campo.slice(1)}: No`);
     });
     if (filtros.soloMaestros === "true") filtrosAplicados.push("Solo Maestros: Sí");
 
     // Columnas PDF: base + Maestro + Instructor + otros si están visibles
     const columnasPDF = [
-      "Nombre", "Apellido", "Documento", "Peso (kg)", "Cinturón", "Maestro", "Instructor"
+      "Apellido, Nombre", "Documento", "Edad", "Peso (kg)", "Grado", "Maestro", "Instructor"
     ];
     if (mostrarOtros) {
       columnasPDF.push("Otro Instructor", "Otro Maestro");
@@ -231,12 +269,15 @@ const AdminParticipantes = () => {
     );
 
     const bodyPDF = participantes.map((p) => {
+      const apellidoNombre = `${p.apellido || ""}, ${p.nombre || ""}`.toUpperCase();
+      const grado = (p.cinturon || "").toUpperCase();
+      const edad = calcularEdad(p.fechaNacimiento);
       const fila = [
-        p.nombre,
-        p.apellido,
+        apellidoNombre,
         p.documento,
+        edad,
         p.peso,
-        p.cinturon,
+        grado,
         // Maestro e Instructor: mostrar nombre completo si existe en maestros/instructores
         (() => {
           const ma = maestros.find(m => m.id === p.maestroId);
@@ -352,7 +393,18 @@ const AdminParticipantes = () => {
     },
     { field: "documento", headerName: "Documento", width: 120 },
     { field: "peso", headerName: "Peso (kg)", width: 90 },
-    { field: "cinturon", headerName: "Cinturón", width: 120 },
+    {
+      field: "edad",
+      headerName: "Edad",
+      width: 80,
+      valueGetter: (params) => calcularEdad(params.row.fechaNacimiento),
+    },
+    {
+      field: "cinturon",
+      headerName: "Grado",
+      width: 120,
+      valueGetter: (params) => (params.row.cinturon || "").toUpperCase(),
+    },
     {
       field: "maestroId",
       headerName: "Maestro",
@@ -384,6 +436,10 @@ const AdminParticipantes = () => {
     {
       field: "coach", headerName: "Coach", width: 70,
       renderCell: (params) => params.row.coach ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
+    },
+    {
+      field: "juez", headerName: "Juez", width: 70,
+      renderCell: (params) => params.row.juez ? <span style={{color: 'green'}}>✔️</span> : <span style={{color: 'red'}}>❌</span>
     },
     {
       field: "arbitro", headerName: "Árbitro", width: 70,
@@ -503,13 +559,14 @@ const AdminParticipantes = () => {
       doc.setFontSize(35); doc.setFont("helvetica", "bold");
       doc.text("Participante", pageWidth / 2, contentStartY + 30, { align: "center" });
 
+      const edad = calcularEdad(participante.fechaNacimiento);
       const data = [
         `Nombre: ${participante.nombre}`,
         `Apellido: ${participante.apellido}`,
         `Documento: ${participante.documento}`,
-        `Fecha Nacimiento: ${participante.fechaNacimiento}`,
+        `Edad: ${edad}`,
         `Peso: ${participante.peso} kg`,
-        `Cinturón: ${participante.cinturon}`
+        `Grado: ${(participante.cinturon || "").toUpperCase()}`
       ];
 
       doc.setFontSize(16);
@@ -609,10 +666,12 @@ const AdminParticipantes = () => {
             <Typography>Deuda: ${deuda}</Typography>
           </Box>
 
-          {/* Filtros booleanos */}
+          {/* Filtros booleanos y de edad */}
           <Box sx={{ mb: 2, mt: 1 }}>
             <Grid container spacing={2} alignItems="center">
-              {["tul","lucha","equipos","coach","arbitro","autoridad_mesa"].map((campo) => (
+              {[
+                "tul","lucha","equipos","coach","juez","arbitro","autoridad_mesa"
+              ].map((campo) => (
                 <Grid item xs={12} sm={2} key={campo}>
                   <TextField select fullWidth name={campo} label={campo.charAt(0).toUpperCase() + campo.slice(1)} value={filtros[campo]} onChange={handleChange}>
                     <MenuItem value="">Todos</MenuItem>
@@ -621,6 +680,17 @@ const AdminParticipantes = () => {
                   </TextField>
                 </Grid>
               ))}
+              <Grid item xs={12} sm={2} key="rangoEdad">
+                <TextField select fullWidth name="rangoEdad" label="Rango Edad" value={filtros.rangoEdad} onChange={handleChange}>
+                  <MenuItem value="">Todas</MenuItem>
+                  <MenuItem value="5-13">5 a 13</MenuItem>
+                  <MenuItem value="14-15">14 y 15</MenuItem>
+                  <MenuItem value="16-17">16 y 17</MenuItem>
+                  <MenuItem value="18-34">18 a 34</MenuItem>
+                  <MenuItem value="35-44">35 a 44</MenuItem>
+                  <MenuItem value="45-59">45 a 59</MenuItem>
+                </TextField>
+              </Grid>
               <Grid item xs={12} sm={2} key="soloMaestros">
                 <TextField select fullWidth name="soloMaestros" label="Solo Maestros" value={filtros.soloMaestros} onChange={handleChange}>
                   <MenuItem value="">Todos</MenuItem>

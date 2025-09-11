@@ -16,6 +16,7 @@
     "@mui/material": "^5.18.0",
     "@mui/x-data-grid": "^5.17.26",
     "axios": "^1.8.4",
+    "dayjs": "^1.11.18",
     "firebase": "^11.6.0",
     "jspdf": "^3.0.2",
     "jspdf-autotable": "^5.0.2",

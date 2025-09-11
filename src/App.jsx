@@ -18,6 +18,7 @@ import AltaCategoriaCombate from "./pages/Torneos/AltaCategoriaCombate";
 import Torneos from "./pages/Torneos/Torneos"; 
 import ParticipantesPorCategoria from "./pages/Torneos/ParticipantesPorCategoria";
 import MiInscripcion from "./pages/MiInscripcion";
+import ZonasManager from "./pages/ZonasManager";
 
 
 const App = () => {
@@ -49,6 +50,7 @@ const App = () => {
     {/* Esta podrías incluso eliminarla si solo usás la ruta sin params */}
     <Route path="combate-live/:combateId" element={<CombateLive combateId="..." nombreRojo="..." nombreAzul="..." />} />
     <Route path="mi-inscripcion" element={<MiInscripcion />} />
+  <Route path="zonas" element={<ZonasManager />} />
   </Route>
 </Routes>
 

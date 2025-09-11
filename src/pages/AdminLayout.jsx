@@ -32,6 +32,7 @@ const AdminLayout = () => {
       { label: "Escuelas", path: "/admin/escuelas", icon: <SchoolIcon /> },
       { label: "Roles", path: "/admin/roles", icon: <SecurityIcon /> },
       { label: "Combates", path: "/admin/combates", icon: <EventIcon /> },
+  { label: "Zonas", path: "/admin/zonas", icon: <EventIcon /> },
     ],
     participante: [
       { label: "Mi inscripción", path: "/admin/mi-inscripcion", icon: <GroupIcon /> },

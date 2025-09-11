@@ -10,6 +10,8 @@ import MenuItem from "@mui/material/MenuItem";
 import Button from "@mui/material/Button";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import LoginForm from "./LoginForm";
+import Modal from "@mui/material/Modal";
 
 const pages = [
   { label: "Inicio", path: "/" },
@@ -18,7 +20,8 @@ const pages = [
 
 const Navbar = () => {
   const [anchorElNav, setAnchorElNav] = React.useState(null);
-  const { usuario, loginConGoogle } = useAuth();
+  const { usuario } = useAuth();
+  const [openLogin, setOpenLogin] = React.useState(false);
 
   const handleOpenNavMenu = (event) => setAnchorElNav(event.currentTarget);
   const handleCloseNavMenu = () => setAnchorElNav(null);
@@ -27,81 +30,54 @@ const Navbar = () => {
 
   return (
     <AppBar position="static" sx={{ bgcolor: "#000", width: "100%" }}>
-<Toolbar sx={{ width: "100%", px: { xs: 2, sm: 4 }, justifyContent: "space-between" }}>
-{/* Logo a la izquierda */}
-<Box
+      <Toolbar sx={{ width: "100%", px: { xs: 2, sm: 4 }, justifyContent: "space-between" }}>
+        {/* Logo a la izquierda */}
+        <Box
           component={Link}
           to="/"
           sx={{
             display: "flex",
             alignItems: "center",
             textDecoration: "none",
-            ml: "15%", // margen izquierdo del 10%
+            ml: "15%", // margen izquierdo del 15%
           }}
         >
-         <Box
-  component="img"
-  src="/logo.png"
-  alt="Logo"
-  sx={{ height: 80, width: 80, mr: 2 }}
-/>
+          <Box
+            component="img"
+            src="/logo.png"
+            alt="Logo"
+            sx={{ height: 80, width: 80, mr: 2 }}
+          />
 
           <Typography variant="h6" noWrap sx={{ color: "#fff" }}>
           </Typography>
         </Box>
-
-        {/* Espaciador para empujar a la derecha */}
-        <Box sx={{ flexGrow: 1 }} />
-
-        {/* Menú grande (desktop) */}
-        <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", gap: "2vmin" }}>
+        {/* Menú de navegación */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
           {fullMenu.map((page) => (
             <Button
-              key={page.path}
+              key={page.label}
               component={Link}
               to={page.path}
-              sx={{ color: "white" }}
+              sx={{ color: "#fff", fontWeight: "bold" }}
             >
               {page.label}
             </Button>
           ))}
-          {usuario ? (
-            <Typography variant="body2" sx={{ color: "white" }}>
-              {usuario.displayName || usuario.email}
-            </Typography>
-          ) : (
-            <Button color="inherit" onClick={loginConGoogle}>
-              Iniciar sesión con Google
+          {/* Opción de ingreso si no está logueado */}
+          {!usuario && (
+            <Button color="inherit" onClick={() => setOpenLogin(true)} sx={{ fontWeight: "bold" }}>
+              INICIAR SESIÓN
             </Button>
           )}
         </Box>
-
-        {/* Menú hamburguesa (mobile) */}
-        <Box sx={{ display: { xs: "flex", md: "none" }, ml: "auto" }}>
-          <IconButton size="large" color="inherit" onClick={handleOpenNavMenu}>
-            <MenuIcon />
-          </IconButton>
-          <Menu
-            anchorEl={anchorElNav}
-            open={Boolean(anchorElNav)}
-            onClose={handleCloseNavMenu}
-          >
-            {fullMenu.map((page) => (
-              <MenuItem
-                key={page.path}
-                component={Link}
-                to={page.path}
-                onClick={handleCloseNavMenu}
-              >
-                {page.label}
-              </MenuItem>
-            ))}
-            {!usuario && (
-              <MenuItem onClick={loginConGoogle}>Iniciar sesión con Google</MenuItem>
-            )}
-          </Menu>
-        </Box>
       </Toolbar>
+      {/* Modal de login */}
+      <Modal open={openLogin} onClose={() => setOpenLogin(false)}>
+        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', bgcolor: '#fff', boxShadow: 24, borderRadius: 2, p: 3, minWidth: 350 }}>
+          <LoginForm onLoginSuccess={() => setOpenLogin(false)} />
+        </Box>
+      </Modal>
     </AppBar>
   );
 };

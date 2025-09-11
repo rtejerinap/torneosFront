@@ -8,9 +8,9 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import EventIcon from "@mui/icons-material/Event";
 import GroupIcon from "@mui/icons-material/Group";
 import SchoolIcon from "@mui/icons-material/School";
-import SecurityIcon from "@mui/icons-material/Security"; // Para el ícono de Roles
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import SecurityIcon from "@mui/icons-material/Security";
 import { useAuth } from "../context/AuthContext";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const drawerWidth = 240;
 
@@ -18,7 +18,7 @@ const AdminLayout = () => {
   const [open, setOpen] = React.useState(true);
   const location = useLocation();
   const navigate = useNavigate();
-  const { cerrarSesion, rol: roles } = useAuth(); // ✅ fix: usar 'rol' y renombrar como 'roles'
+  const { cerrarSesion, rol: roles } = useAuth(); // roles es array, p.ej. ['usuario']
 
   const handleLogout = async () => {
     await cerrarSesion();
@@ -31,33 +31,27 @@ const AdminLayout = () => {
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
       { label: "Escuelas", path: "/admin/escuelas", icon: <SchoolIcon /> },
       { label: "Roles", path: "/admin/roles", icon: <SecurityIcon /> },
-    { label: "Combates", path: "/admin/combates", icon: <EventIcon /> },
+      { label: "Combates", path: "/admin/combates", icon: <EventIcon /> },
     ],
-    usuario: [
-     //{ label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
+    participante: [
+      { label: "Mi inscripción", path: "/admin/mi-inscripcion", icon: <GroupIcon /> },
     ],
     coach: [
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
       { label: "Escuelas", path: "/admin/escuelas", icon: <SchoolIcon /> },
-    ],
-    arbitro: [
-      { label: "Torneos", path: "/admin/torneos", icon: <EventIcon /> },
-          { label: "Combates", path: "/admin/combates", icon: <EventIcon /> },
-
+      { label: "Combates", path: "/admin/combates", icon: <EventIcon /> },
     ],
     autoridad: [
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
     ],
-        maestro: [
+    maestro: [
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
     ],
   };
 
   const menuItems = (roles || [])
     .flatMap((rol) => menuPorRol[rol] || [])
-    .filter((item, index, self) =>
-      index === self.findIndex((i) => i.path === item.path)
-    );
+    .filter((item, index, self) => index === self.findIndex((i) => i.path === item.path));
 
   return (
     <Box sx={{ display: "flex", height: "100vh" }}>
@@ -82,21 +76,24 @@ const AdminLayout = () => {
         </Toolbar>
         <Divider />
         <List>
-          {menuItems.map((item) => (
-            <ListItem key={item.path} disablePadding sx={{ display: "block" }}>
-              <Tooltip title={open ? "" : item.label} placement="right">
-                <ListItemButton
-                  component={Link}
-                  to={item.path}
-                  selected={location.pathname === item.path}
-                  sx={{ justifyContent: open ? "initial" : "center", px: 2.5 }}
-                >
-                  {item.icon}
-                  {open && <ListItemText primary={item.label} sx={{ ml: 2 }} />}
-                </ListItemButton>
-              </Tooltip>
-            </ListItem>
-          ))}
+          {menuItems.map((item) => {
+            const selected = location.pathname.startsWith(item.path);
+            return (
+              <ListItem key={item.path} disablePadding sx={{ display: "block" }}>
+                <Tooltip title={open ? "" : item.label} placement="right">
+                  <ListItemButton
+                    component={Link}
+                    to={item.path}
+                    selected={selected}
+                    sx={{ justifyContent: open ? "initial" : "center", px: 2.5 }}
+                  >
+                    {item.icon}
+                    {open && <ListItemText primary={item.label} sx={{ ml: 2 }} />}
+                  </ListItemButton>
+                </Tooltip>
+              </ListItem>
+            );
+          })}
         </List>
         <Divider />
         <List>
@@ -119,11 +116,11 @@ const AdminLayout = () => {
         sx={{
           flexGrow: 1,
           p: 3,
-        //  ml: open ? `${drawerWidth}px` : "64px",
           transition: "margin 0.3s",
         }}
       >
         <Toolbar />
+        {/* 👇 Render de las subrutas definidas en App.jsx */}
         <Outlet />
       </Box>
     </Box>

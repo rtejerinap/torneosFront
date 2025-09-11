@@ -1,6 +1,7 @@
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditParticipanteModal from "./EditParticipanteModal";
+import ParticipanteDetalleModal from "./ParticipanteDetalleModal";
 import ParticipantesSimple from "./ParticipantesSimple";
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
@@ -645,39 +646,14 @@ const AdminParticipantes = () => {
             />
           </Paper>
 
-          {/* Modal detalle */}
-          <Modal open={modalOpen} onClose={cerrarModal}>
-            <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", bgcolor: "#2c2c2c", color: "white", boxShadow: 24, borderRadius: 2, minWidth: 350, maxWidth: 500, overflow: "hidden", fontFamily: "Arial, sans-serif" }}>
-              <Box sx={{ bgcolor: "#000", textAlign: "center", p: 2 }}>
-                <img src="/logo.png" alt="Logo" style={{ maxWidth: "100%", height: "auto", maxHeight: 80, objectFit: "contain" }}/>
-              </Box>
-              <Box sx={{ bgcolor: "#fff", color: "#000", textAlign: "center", p: 3 }}>
-                {detalle && (
-                  <>
-                    <Typography variant="h4" gutterBottom>
-                      {torneos.find(t => t.id === filtros.torneoId)?.nombre || "No seleccionado"}
-                    </Typography>
-                    <Typography variant="h3" gutterBottom>Participante</Typography>
-                    <Typography fontSize={18}>Nombre: {detalle.nombre}</Typography>
-                    <Typography fontSize={18}>Apellido: {detalle.apellido}</Typography>
-                    <Typography fontSize={18}>Documento: {detalle.documento}</Typography>
-                    <Typography fontSize={18}>Fecha Nac: {detalle.fechaNacimiento}</Typography>
-                    <Typography fontSize={18}>Peso: {detalle.peso} kg</Typography>
-                    <Typography fontSize={18}>Cinturón: {detalle.cinturon}</Typography>
-                    {detalle.qr && (
-                      <Box mt={2}>
-                        <Typography variant="h6">Código QR</Typography>
-                        <img src={detalle.qr} alt="QR Participante" style={{ width: 150, marginTop: 10 }}/>
-                      </Box>
-                    )}
-                    <Button variant="contained" fullWidth sx={{ mt: 3 }} onClick={() => exportarDetallePDF(detalle)}>
-                      Exportar a PDF
-                    </Button>
-                  </>
-                )}
-              </Box>
-            </Box>
-          </Modal>
+          {/* Modal detalle como componente separado */}
+          <ParticipanteDetalleModal
+            open={modalOpen}
+            onClose={cerrarModal}
+            participanteId={detalle?.id}
+            torneoNombre={torneos.find(t => t.id === filtros.torneoId)?.nombre || "No seleccionado"}
+            exportarDetallePDF={exportarDetallePDF}
+          />
 
           {/* Modal edición */}
           <EditParticipanteModal

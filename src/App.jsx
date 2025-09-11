@@ -17,6 +17,7 @@ import CombateLiveWrapper from "./pages/Combates/CombateLiveWrapper";
 import AltaCategoriaCombate from "./pages/Torneos/AltaCategoriaCombate";
 import Torneos from "./pages/Torneos/Torneos"; 
 import ParticipantesPorCategoria from "./pages/Torneos/ParticipantesPorCategoria";
+import MiInscripcion from "./pages/MiInscripcion";
 
 
 const App = () => {
@@ -34,7 +35,7 @@ const App = () => {
   <Route path="/combate-live" element={<CombateLiveWrapper />} />
 
   {/* Admin layout con subrutas */}
-  <Route path="/admin" element={<AdminLayout />}>
+  <Route path="/admin/*" element={<AdminLayout />}>
     <Route index element={<Admin />} />
     <Route path="participantes" element={<Participantes />} />
     <Route path="alta-maestro" element={<AltaMaestro />} />
@@ -47,6 +48,7 @@ const App = () => {
     <Route path="alta-categoria-combate" element={<AltaCategoriaCombate />} />
     {/* Esta podrías incluso eliminarla si solo usás la ruta sin params */}
     <Route path="combate-live/:combateId" element={<CombateLive combateId="..." nombreRojo="..." nombreAzul="..." />} />
+    <Route path="mi-inscripcion" element={<MiInscripcion />} />
   </Route>
 </Routes>
 

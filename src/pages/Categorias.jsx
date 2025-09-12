@@ -1,5 +1,7 @@
 
 import { Checkbox, CircularProgress, TextField, Button, MenuItem, Grid, Typography, Box, Divider, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText } from '@mui/material';
+import dayjs from 'dayjs';
+
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -11,6 +13,13 @@ const BracketView = React.lazy(() => import('./Combates/BracketView'));
 
 const API_BASE = import.meta.env.VITE_API_URL;
 
+// Función para calcular la edad
+const calcularEdad = (fechaNacimiento) => {
+  if (!fechaNacimiento) return '';
+  const hoy = dayjs();
+  const nacimiento = dayjs(fechaNacimiento);
+  return hoy.diff(nacimiento, 'year');
+};
 const rangoEdades = [
   { label: '5 a 6 años', min: 5, max: 6 },
   { label: '7 a 8 años', min: 7, max: 8 },
@@ -308,7 +317,7 @@ const Categorias = () => {
               >
                 <MenuItem value="">Seleccione modalidad</MenuItem>
                 <MenuItem value="Lucha">Lucha</MenuItem>
-                <MenuItem value="Tul">Tul</MenuItem>
+                <MenuItem value="tul">Tul</MenuItem>
               </TextField>
             </Grid>
           </Grid>
@@ -357,9 +366,251 @@ const Categorias = () => {
         </Box>
       )}
       {/* Modals: Participantes, BracketView, Ver, Editar, Eliminar (same as before) */}
-      {/* ...existing modal code from AltaCategoriaCombate.jsx... */}
-      {/* Move all modal logic here, unchanged, except restrict edit/delete/add to isAdmin */}
-      {/* ...existing code... */}
+      {/* Modal Participantes por Categoría */}
+      <Dialog open={modalParticipantes.open} onClose={() => setModalParticipantes({ open: false, categoria: null, participantes: [], loading: false })} maxWidth="sm" fullWidth>
+        <DialogTitle>Participantes de la Categoría</DialogTitle>
+        <DialogContent dividers>
+          {modalParticipantes.loading ? (
+            <Box display="flex" justifyContent="center" mt={2}><CircularProgress /></Box>
+          ) : (
+            <>
+              <Typography variant="subtitle1" gutterBottom>
+                Categoría: <b>{modalParticipantes.categoria?.nombre}</b>
+              </Typography>
+              <Typography variant="subtitle2" gutterBottom>
+                Participantes encontrados: {modalParticipantes.participantes.length}
+              </Typography>
+              {isAdmin && (
+                <Box mb={2}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    disabled={seleccionados.length === 0}
+                    onClick={async () => {
+                      try {
+                        await fetch(`${API_BASE}/combates/generar-llaves-manual`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            categoriaId: modalParticipantes.categoria?.id,
+                            participanteIds: seleccionados,
+                            tipoLlave: modalParticipantes.categoria?.modalidad || 'lucha'
+                          })
+                        });
+                        alert('Llave generada correctamente');
+                        setSeleccionados([]);
+                        // Recargar participantes
+                        setModalParticipantes((prev) => ({ ...prev, loading: true }));
+                        try {
+                          const res = await fetch(`${API_BASE}/api/categorias/${modalParticipantes.categoria?.id}/participantes`);
+                          const data = await res.json();
+                          setModalParticipantes((prev) => ({ ...prev, participantes: data, loading: false }));
+                        } catch (error) {
+                          setModalParticipantes((prev) => ({ ...prev, participantes: [], loading: false }));
+                        }
+                      } catch (err) {
+                        alert('Error al generar la llave');
+                      }
+                    }}
+                  >
+                    Generar llave manual
+                  </Button>
+                </Box>
+              )}
+              <List>
+                {modalParticipantes.participantes.map((p) => {
+                  const modalidad = modalParticipantes.categoria?.modalidad;
+                  const llaveId = modalidad === 'Lucha' ? p.llave_lucha_id : p.llave_tul_id;
+
+                  return (
+                    <React.Fragment key={p.id}>
+                      <ListItem
+                        secondaryAction={
+                          llaveId ? (
+                            <IconButton edge="end" title="Ver llave" onClick={() => setModalLlave({ open: true, llaveId: llaveId })}>
+                              <VisibilityIcon />
+                            </IconButton>
+                          ) : (
+                            isAdmin ? (
+                              <Checkbox
+                                edge="end"
+                                checked={seleccionados.includes(p.id)}
+                                onChange={(_, checked) => {
+                                  setSeleccionados((prev) =>
+                                    checked
+                                      ? [...prev, p.id]
+                                      : prev.filter((id) => id !== p.id)
+                                  );
+                                }}
+                              />
+                            ) : null
+                          )
+                        }
+                        disabled={!!llaveId || !isAdmin}
+                      >
+                        <ListItemText
+                          primary={
+                            <span style={llaveId
+                              ? { color: '#c62828', fontWeight: 900, fontSize: '1.08em', background: '#fffbe6', padding: '2px 4px', borderRadius: 3 }
+                              : {}}>
+                              {`${p.apellido}, ${p.nombre}`}
+                            </span>
+                          }
+                          secondary={
+                            <span style={llaveId
+                              ? { color: '#c62828', fontWeight: 700, background: '#fffbe6', padding: '2px 4px', borderRadius: 3 }
+                              : {}}>
+                              {`Edad: ${calcularEdad(p.fechaNacimiento)} | Peso: ${p.peso}kg | Cinturón: ${p.cinturon}`}
+                            </span>
+                          }
+                        />
+                      </ListItem>
+                      <Divider />
+                    </React.Fragment>
+                  );
+                })}
+              </List>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setModalParticipantes({ open: false, categoria: null, participantes: [], loading: false }); setSeleccionados([]); }}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+      {/* Modal BracketView para llave */}
+      <Dialog open={modalLlave.open} onClose={() => setModalLlave({ open: false, llaveId: null })} maxWidth="lg" fullWidth>
+        <DialogTitle>Llave de la categoría</DialogTitle>
+        <DialogContent dividers>
+          {modalLlave.llaveId && (
+            <Box sx={{ minHeight: 400 }}>
+              <React.Suspense fallback={<div>Cargando...</div>}>
+                <BracketView llaveId={modalLlave.llaveId} />
+              </React.Suspense>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setModalLlave({ open: false, llaveId: null })}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+      {/* Modal Ver Detalles */}
+      <Dialog open={modal.open && modal.type === 'view'} onClose={() => setModal({ open: false })} maxWidth="sm" fullWidth>
+        <DialogTitle>Detalles de la Categoría</DialogTitle>
+        <DialogContent dividers>
+          {modal.categoria && (
+            <Box>
+              <Typography><b>Nombre:</b> {modal.categoria.nombre}</Typography>
+              <Typography><b>Sexo:</b> {modal.categoria.sexo}</Typography>
+              <Typography><b>Edad:</b> {modal.categoria.edad_min} - {modal.categoria.edad_max}</Typography>
+              <Typography><b>Peso:</b> {modal.categoria.peso_minimo} - {modal.categoria.peso_maximo} kg</Typography>
+              <Typography><b>Graduación:</b> {modal.categoria.graduacion_desde} a {modal.categoria.graduacion_hasta}</Typography>
+              <Typography><b>Rounds Preliminar:</b> {modal.categoria.cantidad_de_rounds_preliminar} x {modal.categoria.tiempo_por_round_preliminar}s</Typography>
+              <Typography><b>Rounds Final:</b> {modal.categoria.cantidad_de_rounds_final} x {modal.categoria.tiempo_por_round_final}s</Typography>
+              <Typography><b>Tiempo extra:</b> {modal.categoria.tiempo_extra}s</Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setModal({ open: false })}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+      {/* Modal Eliminar */}
+      <Dialog open={modal.open && modal.type === 'delete'} onClose={() => setModal({ open: false })} maxWidth="xs">
+        <DialogTitle>Eliminar Categoría</DialogTitle>
+        <DialogContent dividers>
+          {modal.categoria && (
+            <Typography>¿Seguro que deseas eliminar la categoría <b>{modal.categoria.nombre}</b>?</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setModal({ open: false })} disabled={deleteLoading}>Cancelar</Button>
+          <Button color="error" variant="contained" disabled={deleteLoading} onClick={async () => {
+            setDeleteLoading(true);
+            try {
+              await axios.delete(`${API_BASE}/api/categorias/${modal.categoria.id}`);
+              setCategorias(categorias.filter(c => c.id !== modal.categoria.id));
+              setModal({ open: false });
+            } catch (e) {
+              alert('Error al eliminar');
+            } finally {
+              setDeleteLoading(false);
+            }
+          }}>Eliminar</Button>
+        </DialogActions>
+      </Dialog>
+      {/* Modal Editar */}
+      <Dialog open={modal.open && modal.type === 'edit'} onClose={() => setModal({ open: false })} maxWidth="sm" fullWidth>
+        <DialogTitle>Editar Categoría</DialogTitle>
+        <DialogContent dividers>
+          {editForm && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Sexo" name="sexo" value={editForm.sexo} onChange={e => setEditForm(f => ({ ...f, sexo: e.target.value }))} fullWidth>
+                  <MenuItem value="masculino">Masculino</MenuItem>
+                  <MenuItem value="femenino">Femenino</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Edad mínima" type="number" name="edad_min" value={editForm.edad_min} onChange={e => setEditForm(f => ({ ...f, edad_min: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Edad máxima" type="number" name="edad_max" value={editForm.edad_max} onChange={e => setEditForm(f => ({ ...f, edad_max: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Peso mínimo" type="number" name="peso_minimo" value={editForm.peso_minimo} onChange={e => setEditForm(f => ({ ...f, peso_minimo: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Peso máximo" type="number" name="peso_maximo" value={editForm.peso_maximo} onChange={e => setEditForm(f => ({ ...f, peso_maximo: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Graduación Desde" name="graduacion_desde" value={editForm.graduacion_desde} onChange={e => setEditForm(f => ({ ...f, graduacion_desde: e.target.value }))} fullWidth>
+                  {ORDEN_CINTURONES.map((g) => (
+                    <MenuItem key={g} value={g}>{g}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField select label="Graduación Hasta" name="graduacion_hasta" value={editForm.graduacion_hasta} onChange={e => setEditForm(f => ({ ...f, graduacion_hasta: e.target.value }))} fullWidth>
+                  {ORDEN_CINTURONES.map((g) => (
+                    <MenuItem key={g} value={g}>{g}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Tiempo por round (preliminar)" type="number" name="tiempo_por_round_preliminar" value={editForm.tiempo_por_round_preliminar} onChange={e => setEditForm(f => ({ ...f, tiempo_por_round_preliminar: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Cantidad de rounds (preliminar)" type="number" name="cantidad_de_rounds_preliminar" value={editForm.cantidad_de_rounds_preliminar} onChange={e => setEditForm(f => ({ ...f, cantidad_de_rounds_preliminar: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Tiempo por round (final)" type="number" name="tiempo_por_round_final" value={editForm.tiempo_por_round_final} onChange={e => setEditForm(f => ({ ...f, tiempo_por_round_final: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Cantidad de rounds (final)" type="number" name="cantidad_de_rounds_final" value={editForm.cantidad_de_rounds_final} onChange={e => setEditForm(f => ({ ...f, cantidad_de_rounds_final: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField label="Tiempo extra (segundos)" type="number" name="tiempo_extra" value={editForm.tiempo_extra} onChange={e => setEditForm(f => ({ ...f, tiempo_extra: parseInt(e.target.value) }))} fullWidth />
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setModal({ open: false })} disabled={editLoading}>Cancelar</Button>
+          <Button variant="contained" disabled={editLoading} onClick={async () => {
+            setEditLoading(true);
+            try {
+              await axios.put(`${API_BASE}/api/categorias/${editForm.id}`, editForm);
+              setCategorias(categorias.map(c => c.id === editForm.id ? { ...editForm } : c));
+              setModal({ open: false });
+            } catch (e) {
+              alert('Error al editar');
+            } finally {
+              setEditLoading(false);
+            }
+          }}>Guardar</Button>
+        </DialogActions>
+      </Dialog>
+      
     </Box>
   );
 };

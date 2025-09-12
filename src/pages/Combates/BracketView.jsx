@@ -244,6 +244,11 @@ const BracketView = ({ llaveId }) => {
 
   return (
     <div className="bracket-wrapper">
+      {llaveInfo?.nombre && (
+        <div style={{ marginBottom: 18, fontWeight: 700, fontSize: '1.3em', color: '#1976d2', textAlign: 'center' }}>
+          {llaveInfo.nombre}
+        </div>
+      )}
       {puedeIntercambiar && (
         <div style={{ marginBottom: 12 }}>
           <b>Intercambio de participantes (primera ronda):</b>

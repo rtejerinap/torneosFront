@@ -28,24 +28,29 @@ const AdminLayout = () => {
   const menuPorRol = {
     admin: [
       { label: "Torneos", path: "/admin/torneos", icon: <EventIcon /> },
+      { label: "Categorías", path: "/admin/categorias", icon: <EventIcon /> },
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
       { label: "Escuelas", path: "/admin/escuelas", icon: <SchoolIcon /> },
       { label: "Roles", path: "/admin/roles", icon: <SecurityIcon /> },
       { label: "Combates", path: "/admin/combates", icon: <EventIcon /> },
-  { label: "Zonas", path: "/admin/zonas", icon: <EventIcon /> },
+      { label: "Zonas", path: "/admin/zonas", icon: <EventIcon /> },
     ],
     participante: [
+      { label: "Categorías", path: "/admin/categorias", icon: <EventIcon /> },
       { label: "Mi inscripción", path: "/admin/mi-inscripcion", icon: <GroupIcon /> },
     ],
     coach: [
+      { label: "Categorías", path: "/admin/categorias", icon: <EventIcon /> },
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
       { label: "Escuelas", path: "/admin/escuelas", icon: <SchoolIcon /> },
       { label: "Combates", path: "/admin/combates", icon: <EventIcon /> },
     ],
     autoridad: [
+      { label: "Categorías", path: "/admin/categorias", icon: <EventIcon /> },
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
     ],
     maestro: [
+      { label: "Categorías", path: "/admin/categorias", icon: <EventIcon /> },
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
     ],
   };

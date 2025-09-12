@@ -51,7 +51,7 @@ const Torneos = () => {
         >
           <Tab label="Listado de Torneos" {...a11yProps(0)} sx={{ textTransform: 'none' }} />
           <Tab label="Crear Torneo" {...a11yProps(1)} sx={{ textTransform: 'none' }} />
-          <Tab label="Categorías de Combate" {...a11yProps(2)} sx={{ textTransform: 'none' }} />
+          <Tab label="Categorías de Combate" {...a11yProps(2)} sx={{ textTransform: 'none' }} /> 
           <Tab label="Participantes por Categoría" {...a11yProps(3)} sx={{ textTransform: 'none' }} />
           <Tab label="Llaves por categoría" {...a11yProps(4)} sx={{ textTransform: 'none' }} />
         </Tabs>

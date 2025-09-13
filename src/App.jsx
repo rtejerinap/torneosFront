@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Llaves from "./pages/Llaves";
 import Navbar from "./components/Navbar";
 import Inicio from "./pages/Inicio";
 import Inscribirse from "./pages/Inscribirse";
@@ -42,16 +43,17 @@ const App = () => {
     <Route path="participantes" element={<Participantes />} />
     <Route path="alta-maestro" element={<AltaMaestro />} />
     <Route path="escuelas" element={<Tab />} />
-    <Route path="roles" element={<RolesManager />} />
-    <Route path="combates" element={<CombatesList />} />
-    <Route path="torneos" element={<Torneos />} />
-    <Route path="participantes-por-categoria" element={<ParticipantesPorCategoria />} />
-    {/* Aquí podrías agregar más rutas de admin según sea necesario */}
-    <Route path="alta-categoria-combate" element={<AltaCategoriaCombate />} />
-    {/* Esta podrías incluso eliminarla si solo usás la ruta sin params */}
-    <Route path="combate-live/:combateId" element={<CombateLive combateId="..." nombreRojo="..." nombreAzul="..." />} />
-    <Route path="mi-inscripcion" element={<MiInscripcion />} />
-    <Route path="categorias" element={<Categorias />} />
+  <Route path="roles" element={<RolesManager />} />
+  <Route path="combates" element={<CombatesList />} />
+  <Route path="torneos" element={<Torneos />} />
+  <Route path="participantes-por-categoria" element={<ParticipantesPorCategoria />} />
+  <Route path="llaves" element={<Llaves />} />
+  {/* Aquí podrías agregar más rutas de admin según sea necesario */}
+  <Route path="alta-categoria-combate" element={<AltaCategoriaCombate />} />
+  {/* Esta podrías incluso eliminarla si solo usás la ruta sin params */}
+  <Route path="combate-live/:combateId" element={<CombateLive combateId="..." nombreRojo="..." nombreAzul="..." />} />
+  <Route path="mi-inscripcion" element={<MiInscripcion />} />
+  <Route path="categorias" element={<Categorias />} />
   <Route path="zonas" element={<ZonasManager />} />
   </Route>
 </Routes>

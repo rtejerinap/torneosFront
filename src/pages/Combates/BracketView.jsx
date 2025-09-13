@@ -1,4 +1,9 @@
 import React, { useEffect, useState, useRef, useLayoutEffect } from "react";
+import VisibilityIcon from '../../components/VisibilityIcon';
+import { useAuth } from "../../context/AuthContext";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import logo from './logo.png'
 import axios from "axios";
 import "./BracketView.css";
 
@@ -8,6 +13,14 @@ const ROUND_GAP = 160;    // Espacio horizontal entre rondas (aumentado para may
 
 
 const BracketView = ({ llaveId }) => {
+  const { rol } = useAuth();
+  const rolesConOjito = ['admin', 'coach', 'arbitro', 'juez', 'autoridad'];
+  const isAdmin = Array.isArray(rol) ? rol.includes('admin') : rol === 'admin';
+  const [zonas, setZonas] = useState([]);
+  const [zonaSeleccionada, setZonaSeleccionada] = useState("");
+  const [asignandoZona, setAsignandoZona] = useState(false);
+  const [zonaActual, setZonaActual] = useState(null);
+  const bracketRef = useRef();
   const [combatesPorRonda, setCombatesPorRonda] = useState({});
   const [matchPositions, setMatchPositions] = useState({});
   const [lines, setLines] = useState([]);
@@ -18,6 +31,23 @@ const BracketView = ({ llaveId }) => {
   const API_BASE = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
+    // Cargar zonas disponibles
+    axios.get(`${API_BASE}/zonas`).then(res => setZonas(res.data)).catch(() => setZonas([]));
+    // Cargar zona actual asignada a la llave
+    if (llaveId) {
+      axios.get(`${API_BASE}/combates/llave/${llaveId}`).then(res => {
+        if (res.data && res.data.zona_id) {
+          setZonaActual(res.data.zona_id);
+          setZonaSeleccionada(res.data.zona_id);
+        } else {
+          setZonaActual(null);
+          setZonaSeleccionada("");
+        }
+      }).catch(() => {
+        setZonaActual(null);
+        setZonaSeleccionada("");
+      });
+    }
     // Resetear todo cuando cambia la llave
     setCombatesPorRonda({});
     setMatchPositions({});
@@ -242,14 +272,92 @@ const BracketView = ({ llaveId }) => {
     }
   };
 
+  const handleExportPDF = async () => {
+    if (!bracketRef.current) return;
+    const canvas = await html2canvas(bracketRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ orientation: "landscape" });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    // Fondo blanco primero
+    pdf.setFillColor(255,255,255);
+    pdf.rect(0,0,pageWidth,pageHeight,'F');
+
+    // Logo y nombre del torneo
+    const logoWidth = 20;
+    const logoHeight = 20;
+    pdf.addImage(logo, 'PNG', 10, 10, logoWidth, logoHeight);
+    pdf.setFontSize(18);
+    pdf.setTextColor(30, 70, 160);
+    pdf.text('Torneo Taekwondo Jujuy 2025', 60, 22);
+
+    // Nombre de la llave
+    pdf.setFontSize(16);
+    pdf.setTextColor(40, 40, 120);
+    pdf.text(llaveInfo?.nombre || 'Llave', 10, 40);
+
+    // Imagen del bracket, centrado y con fondo blanco
+    pdf.addImage(imgData, "PNG", 10, 50, pageWidth - 20, pageHeight - 60);
+    pdf.save(`${llaveInfo?.nombre || 'bracket'}.pdf`);
+  };
+
+  // Responsive styles
+  const isMobile = window.innerWidth < 600;
+  // Layout: bracket ocupa todo el ancho en escritorio, centrado solo en móvil
   return (
-    <div className="bracket-wrapper">
-      {llaveInfo?.nombre && (
-        <div style={{ marginBottom: 18, fontWeight: 700, fontSize: '1.3em', color: '#1976d2', textAlign: 'center' }}>
-          {llaveInfo.nombre}
+    <div className="bracket-wrapper" style={{ padding: isMobile ? '8px' : '32px', width: isMobile ? '100%' : '100vw', maxWidth: isMobile ? '100%' : '100vw', margin: isMobile ? '0 auto' : '0', boxSizing: 'border-box' }}>
+      <div style={{ marginBottom: 16 }}>
+        <b>Zona asignada:</b> {zonaActual ? (zonas.find(z => z.id === zonaActual)?.nombre || zonaActual) : <span style={{ color: '#aaa' }}>Sin zona</span>}
+      </div>
+      {isAdmin && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <label htmlFor="zona-select"><b>Asignar zona:</b></label>
+          <select
+            id="zona-select"
+            value={zonaSeleccionada}
+            onChange={e => setZonaSeleccionada(e.target.value)}
+            style={{ padding: '6px 12px', borderRadius: 4, minWidth: 180 }}
+          >
+            <option value="">Seleccione una zona</option>
+            {zonas.map(z => (
+              <option key={z.id} value={z.id}>{z.nombre}</option>
+            ))}
+          </select>
+          <button
+            onClick={async () => {
+              if (!zonaSeleccionada || asignandoZona) return;
+              setAsignandoZona(true);
+              try {
+                await axios.post(`${API_BASE}/combates/llave/${llaveId}/asignar-zona`, { zona_id: zonaSeleccionada });
+                setZonaActual(zonaSeleccionada);
+                alert('Zona asignada correctamente');
+              } catch {
+                alert('Error al asignar zona');
+              } finally {
+                setAsignandoZona(false);
+              }
+            }}
+            disabled={!zonaSeleccionada || asignandoZona}
+            style={{ padding: '6px 18px', borderRadius: 4, background: '#1976d2', color: '#fff', border: 'none', fontWeight: 600, cursor: (!zonaSeleccionada || asignandoZona) ? 'not-allowed' : 'pointer' }}
+          >
+            {asignandoZona ? 'Asignando...' : 'Asignar'}
+          </button>
         </div>
       )}
-      {puedeIntercambiar && (
+      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
+        <button onClick={handleExportPDF} style={{ padding: isMobile ? '8px 12px' : '8px 18px', background: '#1976d2', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: isMobile ? 15 : 17 }}>Exportar a PDF</button>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', marginBottom: 18 }}>
+        <img src={logo} alt="Logo" style={{ height: isMobile ? 28 : 40, marginRight: 12 }} />
+        <div>
+          <div style={{ fontWeight: "bold", fontSize: isMobile ? 18 : 24, color: '#1976d2' }}>Torneo Taekwondo</div>
+          {llaveInfo?.nombre && (
+            <div style={{ fontWeight: "bold", fontSize: isMobile ? 16 : 20, color: "#3faaff" }}>{llaveInfo.nombre}</div>
+          )}
+        </div>
+      </div>
+      {isAdmin && puedeIntercambiar && (
         <div style={{ marginBottom: 12 }}>
           <b>Intercambio de participantes (primera ronda):</b>
           <div style={{ fontSize: 14, color: '#aaa' }}>Seleccioná un participante de cada combate de la primera ronda y hacé clic en "Intercambiar participantes".</div>
@@ -262,7 +370,7 @@ const BracketView = ({ llaveId }) => {
           </button>
         </div>
       )}
-      <div className="bracket-dynamic-container" style={{ width: containerSize.width, height: containerSize.height }}>
+  <div className="bracket-dynamic-container" style={{ width: isMobile ? '100%' : containerSize.width, height: containerSize.height, overflowX: isMobile ? 'auto' : 'visible', margin: isMobile ? '0 auto' : '0', position: 'relative' }} ref={bracketRef}>
         <svg className="bracket-svg">{lines}</svg>
         {Object.keys(combatesPorRonda).length > 0 && Object.values(combatesPorRonda).flat().map(c => {
           const pos = matchPositions[c.numero_combate];
@@ -284,31 +392,56 @@ const BracketView = ({ llaveId }) => {
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'stretch',
-                opacity: isFirstRound && puedeIntercambiar ? 1 : 0.85
+                opacity: isFirstRound && puedeIntercambiar ? 1 : 0.85,
+                fontSize: isMobile ? 13 : 16,
+                boxShadow: isMobile ? '0 1px 4px rgba(0,0,0,0.10)' : '0 2px 8px rgba(0,0,0,0.15)',
+                borderRadius: 8,
+                background: isMobile ? '#232323' : 'rgba(34,34,34,0.98)'
               }}
             >
               <div className="match-number-wrapper" style={{
-                width: '36px',
+                minWidth: isMobile ? '28px' : '36px',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRight: '1px solid #444',
                 fontWeight: 700,
-                fontSize: '1.1em',
+                fontSize: isMobile ? '1em' : '1.1em',
                 color: '#aaa',
-                background: 'rgba(0,0,0,0.10)'
+                background: 'rgba(0,0,0,0.10)',
+                padding: '4px 0 4px 8px',
+                gap: 2
               }}>
+                {(Array.isArray(rol) ? rol.some(r => rolesConOjito.includes(r)) : rolesConOjito.includes(rol)) && (
+                  <button
+                    style={{ background: 'none', border: 'none', cursor: llaveInfo?.tipo === 'lucha' ? 'pointer' : 'not-allowed', padding: 0, marginBottom: 2, opacity: llaveInfo?.tipo === 'lucha' ? 1 : 0.5 }}
+                    title={llaveInfo?.tipo === 'lucha' ? 'Ver combate' : 'Solo disponible en llaves de lucha'}
+                    onClick={() => {
+                      let url = '';
+                      if (llaveInfo?.tipo === 'lucha') {
+                        url = `/combate-live?combateId=${c.id}&rojo=${encodeURIComponent(c.participante_rojo?.nombre || '')}&azul=${encodeURIComponent(c.participante_azul?.nombre || '')}`;
+                      } else if (llaveInfo?.tipo === 'tul') {
+                        url = `/tul-live?combateId=${c.id}&rojo=${encodeURIComponent(c.participante_rojo?.nombre || '')}&azul=${encodeURIComponent(c.participante_azul?.nombre || '')}`;
+                      }
+                      if (url) window.open(url, '_blank');
+                    }}
+                  >
+                    <VisibilityIcon style={{ fontSize: isMobile ? 18 : 24, color: '#444' }} />
+                  </button>
+                )}
                 {c.numero_combate}
               </div>
-              <div className="match-content" style={{flex: 1, display: 'flex', flexDirection: 'column'}}>
+              <div className="match-content" style={{flex: 1, display: 'flex', flexDirection: 'column', position: 'relative'}}>
                 <div
                   className={`bracket-part${isFirstRound && puedeIntercambiar ? ' bracket-part-selectable' : ''}${isSelectedRojo ? ' bracket-part-selected' : ''}`}
                   style={{ cursor: isFirstRound && puedeIntercambiar ? 'pointer' : 'default', border: isSelectedRojo ? '2px solid #1976d2' : undefined, borderRadius: 4, margin: 2, display: 'flex', alignItems: 'center', gap: 6 }}
                   onClick={() => isFirstRound && puedeIntercambiar && handleSelectParticipant(c.id, 'rojo')}
                 >
                   {c.participante_rojo ? (
-                    <div style={{ color: '#d32f2f', fontWeight: 600 }}>
+                    <div style={{ color: '#d32f2f', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                       {c.participante_rojo.nombre} {c.participante_rojo.apellido}
+                      {c.ganador_participante_id === c.participante_rojo.id && c.ganador_participante_id != null ? <span title="Ganador" style={{ fontSize: isMobile ? 16 : 20 }}>🏆</span> : null}
                     </div>
                   ) : <div className="vacant">(Lugar vacante)</div>}
                 </div>
@@ -318,8 +451,9 @@ const BracketView = ({ llaveId }) => {
                   onClick={() => isFirstRound && puedeIntercambiar && handleSelectParticipant(c.id, 'azul')}
                 >
                   {c.participante_azul ? (
-                    <div style={{ color: '#1976d2', fontWeight: 600 }}>
+                    <div style={{ color: '#1976d2', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                       {c.participante_azul.nombre} {c.participante_azul.apellido}
+                      {c.ganador_participante_id === c.participante_azul.id && c.ganador_participante_id != null ? <span title="Ganador" style={{ fontSize: isMobile ? 16 : 20 }}>🏆</span> : null}
                     </div>
                   ) : <div className="vacant">(Lugar vacante)</div>}
                 </div>

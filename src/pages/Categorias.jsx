@@ -101,14 +101,14 @@ const Categorias = () => {
   }, []);
 
   useEffect(() => {
-    if (tab === 1 && torneoSel && filtroSexo && filtroRango && filtroModalidad) {
+    if (((isAdmin && tab === 1) || (!isAdmin && tab === 0)) && torneoSel && filtroSexo && filtroRango && filtroModalidad) {
       axios.get(`${API_BASE}/api/categorias/filtrar?sexo=${filtroSexo}&rango=${filtroRango}&id_torneo=${torneoSel}&modalidad=${filtroModalidad}`)
         .then(res => setCategorias(res.data))
         .catch(() => setCategorias([]));
     } else {
       setCategorias([]);
     }
-  }, [tab, torneoSel, filtroSexo, filtroRango, filtroModalidad]);
+  }, [tab, torneoSel, filtroSexo, filtroRango, filtroModalidad, isAdmin]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -384,6 +384,22 @@ const Categorias = () => {
               <Typography variant="subtitle2" gutterBottom>
                 Participantes encontrados: {modalParticipantes.participantes.length}
               </Typography>
+              {isAdmin && modalParticipantes.participantes.length > 0 && (
+                <Box mb={2} display="flex" alignItems="center" gap={2}>
+                  <Checkbox
+                    checked={seleccionados.length === modalParticipantes.participantes.length}
+                    indeterminate={seleccionados.length > 0 && seleccionados.length < modalParticipantes.participantes.length}
+                    onChange={(_, checked) => {
+                      if (checked) {
+                        setSeleccionados(modalParticipantes.participantes.map(p => p.id));
+                      } else {
+                        setSeleccionados([]);
+                      }
+                    }}
+                  />
+                  <Typography variant="body2">Seleccionar todos</Typography>
+                </Box>
+              )}
               {isAdmin && (
                 <Box mb={2}>
                   <Button
@@ -392,15 +408,25 @@ const Categorias = () => {
                     disabled={seleccionados.length === 0}
                     onClick={async () => {
                       try {
-                        await fetch(`${API_BASE}/combates/generar-llaves-manual`, {
+                        // Aseguramos que los IDs sean string y el array esté bien formado
+                        const ids = Array.isArray(seleccionados) ? seleccionados.map(id => String(id)) : [];
+                        const tipoLlave = (modalParticipantes.categoria?.modalidad === 'Lucha') ? 'lucha' : 'tul';
+                        const payload = {
+                          categoriaId: String(modalParticipantes.categoria?.id),
+                          participanteIds: ids,
+                          tipoLlave: tipoLlave
+                        };
+                        console.log('Payload enviado a generar-llaves-manual:', payload);
+                        const resp = await fetch(`${API_BASE}/combates/generar-llaves-manual`, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            categoriaId: modalParticipantes.categoria?.id,
-                            participanteIds: seleccionados,
-                            tipoLlave: modalParticipantes.categoria?.modalidad || 'lucha'
-                          })
+                          body: JSON.stringify(payload)
                         });
+                        const result = await resp.json();
+                        if (!resp.ok) {
+                          alert(result.error || 'Error al generar la llave');
+                          return;
+                        }
                         alert('Llave generada correctamente');
                         setSeleccionados([]);
                         // Recargar participantes

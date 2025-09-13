@@ -28,6 +28,7 @@ const AdminLayout = () => {
   const menuPorRol = {
     admin: [
       { label: "Torneos", path: "/admin/torneos", icon: <EventIcon /> },
+      { label: "Llaves", path: "/admin/llaves", icon: <EventIcon /> },
       { label: "Categorías", path: "/admin/categorias", icon: <EventIcon /> },
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
       { label: "Escuelas", path: "/admin/escuelas", icon: <SchoolIcon /> },
@@ -38,20 +39,23 @@ const AdminLayout = () => {
     participante: [
       { label: "Categorías", path: "/admin/categorias", icon: <EventIcon /> },
       { label: "Mi inscripción", path: "/admin/mi-inscripcion", icon: <GroupIcon /> },
+      { label: "Zonas", path: "/admin/zonas", icon: <EventIcon /> },
     ],
     coach: [
+      { label: "Llaves", path: "/admin/llaves", icon: <EventIcon /> },
       { label: "Categorías", path: "/admin/categorias", icon: <EventIcon /> },
-      { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
-      { label: "Escuelas", path: "/admin/escuelas", icon: <SchoolIcon /> },
-      { label: "Combates", path: "/admin/combates", icon: <EventIcon /> },
+      { label: "Zonas", path: "/admin/zonas", icon: <EventIcon /> },
     ],
     autoridad: [
+      { label: "Llaves", path: "/admin/llaves", icon: <EventIcon /> },
       { label: "Categorías", path: "/admin/categorias", icon: <EventIcon /> },
-      { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
+      { label: "Zonas", path: "/admin/zonas", icon: <EventIcon /> },
     ],
     maestro: [
+      { label: "Llaves", path: "/admin/llaves", icon: <EventIcon /> },
       { label: "Categorías", path: "/admin/categorias", icon: <EventIcon /> },
       { label: "Participantes", path: "/admin/participantes", icon: <GroupIcon /> },
+      { label: "Zonas", path: "/admin/zonas", icon: <EventIcon /> },
     ],
   };
 
@@ -121,7 +125,7 @@ const AdminLayout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: 1,
           transition: "margin 0.3s",
         }}
       >

@@ -6,7 +6,7 @@ import formatTiempo from '../../utils/formatTiempo';
 // Helper para mostrar advertencias (sin fondo, solo texto destacado)
 const AdvertenciasInfo = ({ cantidad, color }) => (
   <div style={{
-    color: color,
+    color,
     fontWeight: 'bold',
     marginBottom: 8,
     fontSize: '1.1rem',
@@ -63,9 +63,65 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [logEventos, setLogEventos] = useState([]);
   const [logLoading, setLogLoading] = useState(false);
+
+  // --- NUEVO: datos del combate para "asignar ganador"
+  const [byeFlag, setByeFlag] = useState(false);
+  const [idRojo, setIdRojo] = useState(null);
+  const [idAzul, setIdAzul] = useState(null);
+
+  // Modal / estado para asignar ganador
+  const [asignarOpen, setAsignarOpen] = useState(false);
+  const [asignarSeleccion, setAsignarSeleccion] = useState(null);
+  const [asignando, setAsignando] = useState(false);
+  const [asignarError, setAsignarError] = useState(null);
+
   // Estado para advertencia
   const [confirmAdvertencia, setConfirmAdvertencia] = useState(false);
   const [advertenciaPendiente, setAdvertenciaPendiente] = useState(null);
+
+  // Cargar detalles del combate (bye + ids de participantes)
+  useEffect(() => {
+    let abort = false;
+    const cargar = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/combates/${combateId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (abort) return;
+        setByeFlag(!!data.bye);
+        setIdRojo(data.participante_rojo || null);
+        setIdAzul(data.participante_azul || null);
+      } catch {}
+    };
+    cargar();
+    return () => { abort = true; };
+  }, [combateId]);
+
+  // Empate detectado (mensaje o estado tiempo_extra)
+  const hayEmpateDetectado =
+    estadoCombate === 'tiempo_extra' ||
+    (ultimoMensaje && ultimoMensaje.toLowerCase().includes('empate'));
+
+  // Mostrar botón Asignar ganador (solo admin/autoridad), si hay bye o empate y el combate no está cerrado
+  const mostrarAsignarGanador =
+    puedeControlarReloj &&
+    (byeFlag || hayEmpateDetectado) &&
+    estadoCombate !== 'cerrado' &&
+    (idRojo || idAzul);
+
+  // Armar opciones (excluir null)
+  const opcionesGanador = [
+    idRojo ? { id: idRojo, label: nombreRojo || 'Rojo' } : null,
+    idAzul ? { id: idAzul, label: nombreAzul || 'Azul' } : null
+  ].filter(Boolean);
+
+  // Si hay 1 sola opción (bye), la preseleccionamos
+  useEffect(() => {
+    if (asignarOpen && opcionesGanador.length === 1) {
+      setAsignarSeleccion(opcionesGanador[0].id);
+    }
+  }, [asignarOpen, opcionesGanador]);
+
   // Función para enviar advertencia
   const handleAdvertencia = (lado) => {
     setAdvertenciaPendiente(lado);
@@ -76,7 +132,7 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
     if (!advertenciaPendiente) return;
     try {
       await enviarEvento('advertencia', advertenciaPendiente, 1);
-    } catch (e) {
+    } catch {
       alert('Error al enviar advertencia');
     }
     setConfirmAdvertencia(false);
@@ -104,16 +160,15 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
 
   // Modal para combate finalizado
   useEffect(() => {
-    if (estadoCombate === 'cerrado') setModalFinal(true);
-    else setModalFinal(false);
+    setModalFinal(estadoCombate === 'cerrado');
   }, [estadoCombate]);
 
   // Modal de EMPATE/TIEMPO EXTRA detectado
   useEffect(() => {
-    // Ajusta el texto según cómo venga de tu backend
     if (
       ultimoMensaje?.toLowerCase().includes('empate') ||
-      (estadoCombate === 'empate') // por si tu backend usa un estado especial
+      estadoCombate === 'empate' ||
+      estadoCombate === 'tiempo_extra'
     ) {
       setModalEmpate(true);
     } else {
@@ -137,7 +192,7 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
     if (!puntoPendiente) return;
     try {
       await enviarEvento('punto', puntoPendiente.lado, puntoPendiente.valor);
-    } catch (e) {
+    } catch {
       alert('Error al enviar punto');
     }
     setConfirmPunto(false);
@@ -148,10 +203,11 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
     setConfirmPunto(false);
     setPuntoPendiente(null);
   };
+
   const mostrarBotonIniciar =
     (estadoCombate === 'esperando' ||
       estadoCombate === 'en_pausa' ||
-      estadoCombate === 'no iniciado' ||
+      estadoCombate === 'no iniciado' || // <-- si tu backend usa 'no_iniciado', cambiá esta línea
       estadoCombate === 'tiempo_extra') &&
     estadoCombate !== 'cerrado' &&
     puedeControlarReloj;
@@ -159,6 +215,40 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
   const textoBoton = () => {
     const esTiempoExtra = estadoCombate === 'tiempo_extra';
     return `${estadoCombate === 'en_pausa' ? 'REANUDAR' : 'INICIAR'} ${esTiempoExtra ? 'TIEMPO EXTRA' : `ROUND ${roundActual}`}`;
+  };
+
+  // --- NUEVO: llamar al EP de asignar ganador
+  const ejecutarAsignarGanador = async () => {
+    setAsignarError(null);
+    if (!asignarSeleccion) {
+      setAsignarError('Debés seleccionar un competidor.');
+      return;
+    }
+    setAsignando(true);
+    try {
+      const res = await fetch(`${API_BASE}/combates/${combateId}/asignar-ganador`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ganador_participante_id: asignarSeleccion,
+          metodo_victoria: 'asignacion_manual',
+          forzar: true
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || 'No se pudo asignar el ganador');
+      }
+      // Refrescar estado y cerrar modal
+      await fetchEstadoActual();
+      setAsignarOpen(false);
+      // Si se cerró el combate, mostramos modal de final
+      setModalFinal(true);
+    } catch (e) {
+      setAsignarError(e.message);
+    } finally {
+      setAsignando(false);
+    }
   };
 
   return (
@@ -222,7 +312,7 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.85)',
-          zIndex: 1200, // Más alto que otros modales
+          zIndex: 1200,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -300,7 +390,7 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
         </div>
       )}
 
-      {/* Banner arriba si está cerrado */}
+      {/* Banner arriba si está cerrado o no está en curso */}
       {(estadoCombate === 'cerrado' || (puedeControlarReloj && estadoCombate !== 'en_curso')) && (
         <div style={{
           width: '100%',
@@ -383,7 +473,7 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
         {mostrarBotonIniciar && (
           <button
             onClick={
-              estadoCombate === 'en_pausa' || estadoCombate === 'no iniciado'
+              estadoCombate === 'en_pausa' || estadoCombate === 'no iniciado' // <-- cambiar si usás 'no_iniciado'
                 ? reanudarCombate
                 : iniciarCombate
             }
@@ -392,9 +482,28 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
             {textoBoton()}
           </button>
         )}
+
+        {/* --- NUEVO: Botón Asignar ganador cuando bye o empate --- */}
+        {mostrarAsignarGanador && (
+          <button
+            onClick={() => { setAsignarError(null); setAsignarOpen(true); }}
+            style={{
+              marginTop: 10,
+              fontSize: '1rem',
+              padding: '0.5rem 1rem',
+              borderRadius: 10,
+              background: '#9c27b0',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            Asignar ganador
+          </button>
+        )}
       </div>
 
-      {/* El centro: ocupa 85% del alto TOTAL, quitando el alto del banner, reloj y nombres */}
+      {/* El centro */}
       <div
         style={{
           flexGrow: 1,
@@ -532,7 +641,6 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
             height: '100%',
           }}
         >
-          {/* Centro: solo el round y marcador, el reloj ya está arriba */}
           <>
             <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem', textAlign: 'center' }}>
               {estadoCombate === 'tiempo_extra' ? 'Tiempo Extra' : `Round ${roundActual}`}
@@ -608,7 +716,7 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
               Advertencia Azul
             </button>
           )}
-       
+
           {/* Si es árbitro, muestra los botones clásicos */}
           {puedeSumarPuntos && !puedeControlarReloj && botonesPuntos.map((p) => (
             <button
@@ -674,6 +782,7 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
           )}
 
         </div>
+
         {/* Modal de confirmación de punto admin/autoridad */}
         {confirmPunto && (
           <div style={{
@@ -695,6 +804,7 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
             </div>
           </div>
         )}
+
         {/* Modal de confirmación de advertencia */}
         {confirmAdvertencia && (
           <div style={{
@@ -718,8 +828,53 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
         )}
       </div>
 
-      {/* Nombres movidos arriba de la info de advertencia en cada lado */}
-      {/* Estilos responsive extra para móviles */}
+      {/* Modal ASIGNAR GANADOR */}
+      {asignarOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.75)',
+          zIndex: 2200,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ background: '#fff', color: '#222', padding: 24, borderRadius: 12, minWidth: 320, maxWidth: 420 }}>
+            <h2 style={{ marginTop: 0 }}>Asignar ganador</h2>
+            {opcionesGanador.length === 0 ? (
+              <p>No hay competidores disponibles para asignar.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {opcionesGanador.map(opt => (
+                  <label key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="asignar-ganador"
+                      value={opt.id}
+                      checked={asignarSeleccion === opt.id}
+                      onChange={() => setAsignarSeleccion(opt.id)}
+                    />
+                    <span><b>{opt.label}</b></span>
+                  </label>
+                ))}
+                {asignarError && <div style={{ color: '#b71c1c', marginTop: 6 }}>{asignarError}</div>}
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 18 }}>
+                  <button onClick={() => setAsignarOpen(false)} disabled={asignando}>Cancelar</button>
+                  <button
+                    onClick={ejecutarAsignarGanador}
+                    disabled={asignando || !asignarSeleccion}
+                    style={{ background: '#9c27b0', color: '#fff', fontWeight: 'bold', padding: '0.5rem 1rem', borderRadius: 8 }}
+                  >
+                    {asignando ? 'Asignando...' : 'Asignar'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Estilos responsive */}
       <style>{`
         @media (max-width: 700px) {
           .CombateLive-btn {

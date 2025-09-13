@@ -746,22 +746,25 @@ const AdminParticipantes = () => {
           </Box>
 
           {/* Grid */}
-          <Paper sx={{ mb: 2 }}>
-            <DataGrid
-              autoHeight
-              rows={participantesFiltrados}
-              columns={columnas}
-              getRowId={(row) => row.id}
-              // ✅ paginado MUI v5
-              pageSize={pageSize}
-              rowsPerPageOptions={[10, 20, 50]}
-              onPageSizeChange={(newSize) => setPageSize(Number(newSize))}
-              pagination
-              hideFooterSelectedRowCount
-              processRowUpdate={handlePesoUpdate}
-              experimentalFeatures={{ newEditingApi: true }}
-            />
-          </Paper>
+          <Box sx={{ width: '100%', overflowX: 'auto' }}>
+            <Paper sx={{ minWidth: 1200, mb: 2, overflowX: 'auto' }}>
+              <div style={{ width: '1200px', minWidth: '100%', overflowX: 'auto' }}>
+                <DataGrid
+                  autoHeight
+                  rows={participantesFiltrados}
+                  columns={columnas}
+                  getRowId={(row) => row.id}
+                  pageSize={pageSize}
+                  rowsPerPageOptions={[10, 20, 50]}
+                  onPageSizeChange={(newSize) => setPageSize(Number(newSize))}
+                  pagination
+                  hideFooterSelectedRowCount
+                  processRowUpdate={handlePesoUpdate}
+                  experimentalFeatures={{ newEditingApi: true }}
+                />
+              </div>
+            </Paper>
+          </Box>
 
           {/* Modal detalle como componente separado */}
           <ParticipanteDetalleModal

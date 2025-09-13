@@ -6,7 +6,6 @@ import {
   Button,
   MenuItem,
   TextField,
-  Typography,
   Grid,
   FormGroup,
   FormControlLabel,
@@ -40,7 +39,12 @@ const cinturonesITF = [
   { grado: "9º Dan", nombre: "Negro", color: "#000000" },
 ];
 
-const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos, paises, provincias, escuelas, instructores, maestros }) => {
+const EditParticipanteModal = ({
+  open,
+  onClose,
+  participante,
+  onUpdated,
+}) => {
   const initialForm = {
     nombre: "",
     apellido: "",
@@ -60,60 +64,69 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
     torneoId: "",
     tul: false,
     lucha: false,
-    paisId: "",
     coach: false,
     arbitro: false,
     juez: false,
     autoridad_mesa: false,
+    equipos: false,
   };
 
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
 
-  // Inicializar selects dependientes correctamente
+  // Selects dependientes
   const [localPaises, setLocalPaises] = useState([]);
   const [localProvincias, setLocalProvincias] = useState([]);
   const [localEscuelas, setLocalEscuelas] = useState([]);
   const [localInstructores, setLocalInstructores] = useState([]);
   const [localMaestros, setLocalMaestros] = useState([]);
 
-  // Handler igual que en Inscribirse
+  // helper sort (apellido, nombre)
+  const byApellidoNombre = (a, b) => {
+    const apA = (a.apellido || "").toString().localeCompare((b.apellido || "").toString(), "es", { sensitivity: "base" });
+    if (apA !== 0) return apA;
+    return (a.nombre || "").toString().localeCompare((b.nombre || "").toString(), "es", { sensitivity: "base" });
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
     if (name === "maestroId") {
       setForm((prev) => ({
         ...prev,
         maestroId: value,
-        otroMaestro: value === "" ? prev.otroMaestro : ""
+        otroMaestro: value === "" ? prev.otroMaestro : "",
       }));
       return;
     }
+
     if (name === "instructorId") {
       setForm((prev) => ({
         ...prev,
         instructorId: value,
-        // Si selecciona un instructor, limpiar otroInstructor
-        otroInstructor: value !== "" ? "" : prev.otroInstructor
+        otroInstructor: value !== "" ? "" : prev.otroInstructor,
       }));
       return;
     }
+
     if (name === "otroMaestro") {
       setForm((prev) => ({
         ...prev,
         otroMaestro: value,
-        maestroId: value ? "" : prev.maestroId
+        maestroId: value ? "" : prev.maestroId,
       }));
       return;
     }
+
     if (name === "otroInstructor") {
       setForm((prev) => ({
         ...prev,
         otroInstructor: value,
-        // Si escribe otroInstructor, limpiar instructorId
-        instructorId: value ? "" : prev.instructorId
+        instructorId: value ? "" : prev.instructorId,
       }));
       return;
     }
+
     setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
 
@@ -121,9 +134,10 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
     if (participante) {
       setForm({ ...initialForm, ...participante });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participante]);
 
-  // Cargar países al montar
+  // Paises
   useEffect(() => {
     axios.get(`${API_BASE}/paises`).then((res) => setLocalPaises(res.data));
   }, []);
@@ -131,28 +145,33 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
   // Provincias según país
   useEffect(() => {
     if (form.paisId) {
-      axios.get(`${API_BASE}/provincias/pais/${form.paisId}`).then((res) => setLocalProvincias(res.data));
+      axios
+        .get(`${API_BASE}/provincias/pais/${form.paisId}`)
+        .then((res) => setLocalProvincias(res.data));
     } else {
       setLocalProvincias([]);
     }
   }, [form.paisId]);
 
-  // Escuelas, instructores y maestros según provincia
+  // Escuelas, instructores y maestros
   useEffect(() => {
     if (form.provinciaId) {
-      axios.get(`${API_BASE}/escuelas/provincia/${form.provinciaId}`).then((res) => setLocalEscuelas(res.data));
-      axios.get(`${API_BASE}/instructores/provincia/${form.provinciaId}`).then((res) => setLocalInstructores(res.data));
+      axios
+        .get(`${API_BASE}/escuelas/provincia/${form.provinciaId}`)
+        .then((res) => setLocalEscuelas(res.data));
+      axios
+        .get(`${API_BASE}/instructores/provincia/${form.provinciaId}`)
+        .then((res) => setLocalInstructores(res.data));
     } else {
       setLocalEscuelas([]);
       setLocalInstructores([]);
     }
-    // Maestros siempre global
+    // Maestros global
     axios.get(`${API_BASE}/maestros`).then((res) => setLocalMaestros(res.data));
   }, [form.provinciaId]);
 
-  // Solo Dan (no Rojo punta negra)
+  // Reglas de roles por cinturón
   const esDan = form.cinturon.includes("Dan");
-  // Coach a partir de Azul (4º Gup - Azul), Azul punta roja, Rojo, Rojo punta negra y todos los Danes
   const azulYArriba = [
     "4º Gup - Azul",
     "3º Gup - Azul punta roja",
@@ -166,9 +185,9 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
     "6º Dan - Negro",
     "7º Dan - Negro",
     "8º Dan - Negro",
-    "9º Dan - Negro"
+    "9º Dan - Negro",
   ];
-  const esAzulParaArriba = azulYArriba.some(g => form.cinturon === g);
+  const esAzulParaArriba = azulYArriba.some((g) => form.cinturon === g);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -183,7 +202,7 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
         escuela_id: form.otraEscuela ? null : form.escuela_id,
         otraEscuela: form.otraEscuela || null,
       };
-      console.log('🟡 PUT participante payload:', payload);
+      console.log("🟡 PUT participante payload:", payload);
       await axios.put(`${API_BASE}/participantes/${participante.id}`, payload);
       onUpdated && onUpdated();
       onClose && onClose();
@@ -197,6 +216,13 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
 
   if (!open || !participante) return null;
 
+  // Listas ordenadas
+  const instructoresOrdenados = [...localInstructores].sort(byApellidoNombre);
+  const maestrosOrdenados = [...localMaestros].sort(byApellidoNombre);
+
+  // Estilo base para selects más largos
+  const selectLong = { minWidth: 260 };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>Editar Participante</DialogTitle>
@@ -205,14 +231,43 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }} autoComplete="off">
           <Grid container spacing={{ xs: 1, sm: 2 }}>
             <Grid item xs={12} sm={6}>
-              <TextField name="nombre" label="Nombre" fullWidth size="medium" value={form.nombre} onChange={handleChange} required inputProps={{ style: { fontSize: 18 } }} />
+              <TextField
+                name="nombre"
+                label="Nombre"
+                fullWidth
+                size="medium"
+                value={form.nombre}
+                onChange={handleChange}
+                required
+                inputProps={{ style: { fontSize: 18 } }}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField name="apellido" label="Apellido" fullWidth size="medium" value={form.apellido} onChange={handleChange} required inputProps={{ style: { fontSize: 18 } }} />
+              <TextField
+                name="apellido"
+                label="Apellido"
+                fullWidth
+                size="medium"
+                value={form.apellido}
+                onChange={handleChange}
+                required
+                inputProps={{ style: { fontSize: 18 } }}
+              />
             </Grid>
+
             <Grid item xs={12} sm={6}>
-              <TextField name="documento" label="Documento" fullWidth size="medium" value={form.documento} onChange={handleChange} required inputProps={{ style: { fontSize: 18 } }} />
+              <TextField
+                name="documento"
+                label="Documento"
+                fullWidth
+                size="medium"
+                value={form.documento}
+                onChange={handleChange}
+                required
+                inputProps={{ style: { fontSize: 18 } }}
+              />
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 name="fechaNacimiento"
@@ -227,6 +282,7 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 inputProps={{ style: { fontSize: 18 } }}
               />
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 select
@@ -234,7 +290,7 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 label="Género"
                 fullWidth
                 size="medium"
-                sx={{ minWidth: 100 }}
+                sx={selectLong}
                 value={form.genero}
                 onChange={handleChange}
                 required
@@ -245,6 +301,7 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 <MenuItem value="Femenino">Femenino</MenuItem>
               </TextField>
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 select
@@ -252,7 +309,7 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 label="Grado"
                 fullWidth
                 size="medium"
-                sx={{ minWidth: 100 }}
+                sx={selectLong}
                 value={form.cinturon}
                 onChange={handleChange}
                 required
@@ -269,7 +326,7 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                           mr: 1,
                           borderRadius: "4px",
                           background: c.color,
-                          border: "1px solid #ccc"
+                          border: "1px solid #ccc",
                         }}
                       />
                       {`${c.grado} - ${c.nombre}`}
@@ -278,9 +335,21 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 ))}
               </TextField>
             </Grid>
+
             <Grid item xs={12} sm={6}>
-              <TextField name="peso" label="Peso (kg)" fullWidth size="medium" type="number" value={form.peso} onChange={handleChange} required inputProps={{ style: { fontSize: 18 } }} />
+              <TextField
+                name="peso"
+                label="Peso (kg)"
+                fullWidth
+                size="medium"
+                type="number"
+                value={form.peso}
+                onChange={handleChange}
+                required
+                inputProps={{ style: { fontSize: 18 } }}
+              />
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 select
@@ -288,7 +357,7 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 label="País"
                 fullWidth
                 size="medium"
-                sx={{ minWidth: 100 }}
+                sx={selectLong}
                 value={form.paisId}
                 onChange={handleChange}
                 required
@@ -296,10 +365,13 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 inputProps={{ style: { fontSize: 18 } }}
               >
                 {localPaises.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>{p.nombre}</MenuItem>
+                  <MenuItem key={p.id} value={p.id}>
+                    {p.nombre}
+                  </MenuItem>
                 ))}
               </TextField>
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 select
@@ -307,7 +379,7 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 label="Provincia"
                 fullWidth
                 size="medium"
-                sx={{ minWidth: 100 }}
+                sx={selectLong}
                 value={form.provinciaId}
                 onChange={handleChange}
                 required
@@ -315,10 +387,13 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 inputProps={{ style: { fontSize: 18 } }}
               >
                 {localProvincias.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>{p.nombre}</MenuItem>
+                  <MenuItem key={p.id} value={p.id}>
+                    {p.nombre}
+                  </MenuItem>
                 ))}
               </TextField>
             </Grid>
+
             <Grid item xs={12}>
               <TextField
                 select
@@ -326,7 +401,7 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 label="Escuela"
                 fullWidth
                 size="medium"
-                sx={{ minWidth: 100 }}
+                sx={selectLong}
                 value={form.escuela_id}
                 onChange={handleChange}
                 SelectProps={{ MenuProps: { PaperProps: { style: { maxHeight: 200 } } } }}
@@ -338,9 +413,19 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 ))}
               </TextField>
               {form.escuela_id === "" && (
-                <TextField name="otraEscuela" label="Otra escuela" fullWidth size="medium" value={form.otraEscuela} onChange={handleChange} inputProps={{ style: { fontSize: 18 } }} />
+                <TextField
+                  name="otraEscuela"
+                  label="Otra escuela"
+                  fullWidth
+                  size="medium"
+                  value={form.otraEscuela}
+                  onChange={handleChange}
+                  inputProps={{ style: { fontSize: 18 } }}
+                  sx={{ mt: 1 }}
+                />
               )}
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 select
@@ -348,20 +433,31 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 label="Instructor"
                 fullWidth
                 size="medium"
+                sx={selectLong}
                 value={form.instructorId}
                 onChange={handleChange}
-                SelectProps={{ MenuProps: { PaperProps: { style: { maxHeight: 200 } } } }}
+                SelectProps={{ MenuProps: { PaperProps: { style: { maxHeight: 240 } } } }}
                 inputProps={{ style: { fontSize: 18 } }}
               >
                 <MenuItem value="">Otro</MenuItem>
-                {localInstructores.map((i) => (
-                  <MenuItem key={i.id} value={i.id}>{`${i.nombre} ${i.apellido}`}</MenuItem>
+                {instructoresOrdenados.map((i) => (
+                  <MenuItem key={i.id} value={i.id}>{`${(i.apellido || "").toUpperCase()}, ${i.nombre || ""}`}</MenuItem>
                 ))}
               </TextField>
               {form.instructorId === "" && (
-                <TextField name="otroInstructor" label="Otro instructor" fullWidth size="medium" value={form.otroInstructor} onChange={handleChange} inputProps={{ style: { fontSize: 18 } }} />
+                <TextField
+                  name="otroInstructor"
+                  label="Otro instructor"
+                  fullWidth
+                  size="medium"
+                  value={form.otroInstructor}
+                  onChange={handleChange}
+                  inputProps={{ style: { fontSize: 18 } }}
+                  sx={{ mt: 1 }}
+                />
               )}
             </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField
                 select
@@ -369,38 +465,78 @@ const EditParticipanteModal = ({ open, onClose, participante, onUpdated, torneos
                 label="Maestro"
                 fullWidth
                 size="medium"
+                sx={selectLong}
                 value={form.maestroId}
                 onChange={handleChange}
-                SelectProps={{ MenuProps: { PaperProps: { style: { maxHeight: 200 } } } }}
+                SelectProps={{ MenuProps: { PaperProps: { style: { maxHeight: 240 } } } }}
                 inputProps={{ style: { fontSize: 18 } }}
               >
                 <MenuItem value="">Otro</MenuItem>
-                {localMaestros.map((m) => (
-                  <MenuItem key={m.id} value={m.id}>{`${m.nombre}, ${m.apellido}`}</MenuItem>
+                {maestrosOrdenados.map((m) => (
+                  <MenuItem key={m.id} value={m.id}>{`${(m.apellido || "").toUpperCase()}, ${m.nombre || ""}`}</MenuItem>
                 ))}
               </TextField>
               {form.maestroId === "" && (
-                <TextField name="otroMaestro" label="Otro maestro" fullWidth size="medium" value={form.otroMaestro} onChange={handleChange} inputProps={{ style: { fontSize: 18 } }} />
+                <TextField
+                  name="otroMaestro"
+                  label="Otro maestro"
+                  fullWidth
+                  size="medium"
+                  value={form.otroMaestro}
+                  onChange={handleChange}
+                  inputProps={{ style: { fontSize: 18 } }}
+                  sx={{ mt: 1 }}
+                />
               )}
             </Grid>
+
             <Grid item xs={12}>
-              <FormGroup row sx={{ flexWrap: 'wrap' }}>
-                <FormControlLabel control={<Checkbox checked={form.tul} onChange={handleChange} name="tul" sx={{ p: 0.5 }} />} label={<span style={{ fontSize: 16 }}>Tul</span>} sx={{ m: { xs: 0.5, sm: 1 } }} />
-                <FormControlLabel control={<Checkbox checked={form.lucha} onChange={handleChange} name="lucha" sx={{ p: 0.5 }} />} label={<span style={{ fontSize: 16 }}>Lucha</span>} sx={{ m: { xs: 0.5, sm: 1 } }} />
+              <FormGroup row sx={{ flexWrap: "wrap" }}>
+                <FormControlLabel
+                  control={<Checkbox checked={form.tul} onChange={handleChange} name="tul" sx={{ p: 0.5 }} />}
+                  label={<span style={{ fontSize: 16 }}>Tul</span>}
+                  sx={{ m: { xs: 0.5, sm: 1 } }}
+                />
+                <FormControlLabel
+                  control={<Checkbox checked={form.lucha} onChange={handleChange} name="lucha" sx={{ p: 0.5 }} />}
+                  label={<span style={{ fontSize: 16 }}>Lucha</span>}
+                  sx={{ m: { xs: 0.5, sm: 1 } }}
+                />
                 {esAzulParaArriba && (
-                  <FormControlLabel control={<Checkbox checked={form.coach} onChange={handleChange} name="coach" sx={{ p: 0.5 }} />} label={<span style={{ fontSize: 16 }}>Coach</span>} sx={{ m: { xs: 0.5, sm: 1 } }} />
+                  <FormControlLabel
+                    control={<Checkbox checked={form.coach} onChange={handleChange} name="coach" sx={{ p: 0.5 }} />}
+                    label={<span style={{ fontSize: 16 }}>Coach</span>}
+                    sx={{ m: { xs: 0.5, sm: 1 } }}
+                  />
                 )}
                 {esDan && (
                   <>
-                    <FormControlLabel control={<Checkbox checked={form.equipos} onChange={handleChange} name="equipos" sx={{ p: 0.5 }} />} label={<span style={{ fontSize: 16 }}>Equipos</span>} sx={{ m: { xs: 0.5, sm: 1 } }} />
-                    <FormControlLabel control={<Checkbox checked={form.arbitro} onChange={handleChange} name="arbitro" sx={{ p: 0.5 }} />} label={<span style={{ fontSize: 16 }}>Árbitro</span>} sx={{ m: { xs: 0.5, sm: 1 } }} />
-                    <FormControlLabel control={<Checkbox checked={form.juez} onChange={handleChange} name="juez" sx={{ p: 0.5 }} />} label={<span style={{ fontSize: 16 }}>Juez</span>} sx={{ m: { xs: 0.5, sm: 1 } }} />
-                    <FormControlLabel control={<Checkbox checked={form.autoridad_mesa} onChange={handleChange} name="autoridad_mesa" sx={{ p: 0.5 }} />} label={<span style={{ fontSize: 16 }}>Autoridad Mesa</span>} sx={{ m: { xs: 0.5, sm: 1 } }} />
+                    <FormControlLabel
+                      control={<Checkbox checked={form.equipos} onChange={handleChange} name="equipos" sx={{ p: 0.5 }} />}
+                      label={<span style={{ fontSize: 16 }}>Equipos</span>}
+                      sx={{ m: { xs: 0.5, sm: 1 } }}
+                    />
+                    <FormControlLabel
+                      control={<Checkbox checked={form.arbitro} onChange={handleChange} name="arbitro" sx={{ p: 0.5 }} />}
+                      label={<span style={{ fontSize: 16 }}>Árbitro</span>}
+                      sx={{ m: { xs: 0.5, sm: 1 } }}
+                    />
+                    <FormControlLabel
+                      control={<Checkbox checked={form.juez} onChange={handleChange} name="juez" sx={{ p: 0.5 }} />}
+                      label={<span style={{ fontSize: 16 }}>Juez</span>}
+                      sx={{ m: { xs: 0.5, sm: 1 } }}
+                    />
+                    <FormControlLabel
+                      control={<Checkbox checked={form.autoridad_mesa} onChange={handleChange} name="autoridad_mesa" sx={{ p: 0.5 }} />}
+                      label={<span style={{ fontSize: 16 }}>Autoridad Mesa</span>}
+                      sx={{ m: { xs: 0.5, sm: 1 } }}
+                    />
                   </>
                 )}
               </FormGroup>
             </Grid>
           </Grid>
+
           <DialogActions sx={{ px: { xs: 1, sm: 3 }, pb: { xs: 1, sm: 2 } }}>
             <Button onClick={onClose} color="secondary" sx={{ fontSize: { xs: 16, sm: 18 } }}>
               Cancelar

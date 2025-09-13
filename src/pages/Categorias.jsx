@@ -179,29 +179,24 @@ const Categorias = () => {
                 <TextField select label="Sexo" name="sexo" value={form.sexo} onChange={handleChange} sx={fieldStyle} fullWidth>
                   <MenuItem value="masculino">Masculino</MenuItem>
                   <MenuItem value="femenino">Femenino</MenuItem>
-                  <MenuItem value="mixto">Mixto</MenuItem>
                 </TextField>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField select label="Rango de Edad" name="edad_min" value={form.edad_min && form.edad_max ? `${form.edad_min}-${form.edad_max}` : ''}
-                  onChange={(e) => {
-                    const r = rangoEdades.find(opt => `${opt.min}-${opt.max}` === e.target.value);
-                    if (r) setForm({ ...form, edad_min: r.min, edad_max: r.max });
-                  }} sx={fieldStyle} fullWidth>
-                  {rangoEdades.map((r) => (
-                    <MenuItem key={r.label} value={`${r.min}-${r.max}`}>{r.label}</MenuItem>
-                  ))}
-                </TextField>
+              <Grid item xs={12} sm={3}>
+                <TextField type="number" label="Edad desde" name="edad_min" value={form.edad_min} onChange={handleChange} sx={fieldStyle} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <TextField type="number" label="Edad hasta" name="edad_max" value={form.edad_max} onChange={handleChange} sx={fieldStyle} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <TextField type="number" label="Peso desde (kg)" name="peso_minimo" value={form.peso_minimo} onChange={handleChange} sx={fieldStyle} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <TextField type="number" label="Peso hasta (kg)" name="peso_maximo" value={form.peso_maximo} onChange={handleChange} sx={fieldStyle} fullWidth />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField select label="Rango de Peso" name="peso_minimo" value={form.peso_minimo && form.peso_maximo ? `${form.peso_minimo}-${form.peso_maximo}` : ''}
-                  onChange={(e) => {
-                    const r = rangoPesos.find(opt => `${opt.min}-${opt.max}` === e.target.value);
-                    if (r) setForm({ ...form, peso_minimo: r.min, peso_maximo: r.max });
-                  }} sx={fieldStyle} fullWidth>
-                  {rangoPesos.map((r) => (
-                    <MenuItem key={r.label} value={`${r.min}-${r.max}`}>{r.label}</MenuItem>
-                  ))}
+                <TextField select label="Modalidad" name="modalidad" value={form.modalidad || ''} onChange={handleChange} sx={fieldStyle} fullWidth>
+                  <MenuItem value="Lucha">Lucha</MenuItem>
+                  <MenuItem value="tul">Tul</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -300,7 +295,7 @@ const Categorias = () => {
               >
                 <MenuItem value="">Seleccione rango</MenuItem>
                 <MenuItem value="infantiles">Infantiles (5-13)</MenuItem>
-                <MenuItem value="juvenilesA">Juveniles A (13-14)</MenuItem>
+                <MenuItem value="juvenilesA">Juveniles A (14-15)</MenuItem>
                 <MenuItem value="juvenilesB">Juveniles B (16-17)</MenuItem>
                 <MenuItem value="mayores">Mayores (18-34)</MenuItem>
                 <MenuItem value="mayoresPlata">Mayores Plata (35-44)</MenuItem>
@@ -335,30 +330,39 @@ const Categorias = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {categorias.map((cat) => (
-                    <TableRow key={cat.id}>
-                      <TableCell>{cat.nombre}</TableCell>
-                      <TableCell>{cat.sexo}</TableCell>
-                      <TableCell>{cat.edad_min} - {cat.edad_max}</TableCell>
-                      <TableCell>{cat.peso_minimo} - {cat.peso_maximo} kg</TableCell>
-                      <TableCell>{cat.graduacion_desde} a {cat.graduacion_hasta}</TableCell>
-                      <TableCell align="center">
-                        <IconButton size="small" sx={{ color: '#1976d2' }} onClick={() => setModal({ open: true, type: 'view', categoria: cat })} title="Ver detalles"><VisibilityIcon /></IconButton>
-                        {isAdmin && <IconButton size="small" sx={{ color: '#1976d2' }} onClick={() => { setEditForm(cat); setModal({ open: true, type: 'edit', categoria: cat }); }} title="Editar"><EditIcon /></IconButton>}
-                        {isAdmin && <IconButton size="small" color="error" onClick={() => setModal({ open: true, type: 'delete', categoria: cat })} title="Eliminar"><DeleteIcon /></IconButton>}
-                        <IconButton size="small" sx={{ color: '#388e3c' }} onClick={async () => {
-                          setModalParticipantes({ open: true, categoria: cat, participantes: [], loading: true });
-                          try {
-                            const res = await fetch(`${API_BASE}/api/categorias/${cat.id}/participantes`);
-                            const data = await res.json();
-                            setModalParticipantes({ open: true, categoria: cat, participantes: data, loading: false });
-                          } catch (error) {
-                            setModalParticipantes({ open: true, categoria: cat, participantes: [], loading: false });
-                          }
-                        }} title="Ver participantes"><GroupIcon /></IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {categorias
+                    .slice() // copia para no mutar el estado
+                    .sort((a, b) => {
+                      // Ordenar por edad_min, luego edad_max, luego peso_minimo, luego peso_maximo
+                      if (a.edad_min !== b.edad_min) return a.edad_min - b.edad_min;
+                      if (a.edad_max !== b.edad_max) return a.edad_max - b.edad_max;
+                      if (a.peso_minimo !== b.peso_minimo) return a.peso_minimo - b.peso_minimo;
+                      return a.peso_maximo - b.peso_maximo;
+                    })
+                    .map((cat) => (
+                      <TableRow key={cat.id}>
+                        <TableCell>{cat.nombre}</TableCell>
+                        <TableCell>{cat.sexo}</TableCell>
+                        <TableCell>{cat.edad_min} - {cat.edad_max}</TableCell>
+                        <TableCell>{cat.peso_minimo} - {cat.peso_maximo} kg</TableCell>
+                        <TableCell>{cat.graduacion_desde} a {cat.graduacion_hasta}</TableCell>
+                        <TableCell align="center">
+                          <IconButton size="small" sx={{ color: '#1976d2' }} onClick={() => setModal({ open: true, type: 'view', categoria: cat })} title="Ver detalles"><VisibilityIcon /></IconButton>
+                          {isAdmin && <IconButton size="small" sx={{ color: '#1976d2' }} onClick={() => { setEditForm(cat); setModal({ open: true, type: 'edit', categoria: cat }); }} title="Editar"><EditIcon /></IconButton>}
+                          {isAdmin && <IconButton size="small" color="error" onClick={() => setModal({ open: true, type: 'delete', categoria: cat })} title="Eliminar"><DeleteIcon /></IconButton>}
+                          <IconButton size="small" sx={{ color: '#388e3c' }} onClick={async () => {
+                            setModalParticipantes({ open: true, categoria: cat, participantes: [], loading: true });
+                            try {
+                              const res = await fetch(`${API_BASE}/api/categorias/${cat.id}/participantes`);
+                              const data = await res.json();
+                              setModalParticipantes({ open: true, categoria: cat, participantes: data, loading: false });
+                            } catch (error) {
+                              setModalParticipantes({ open: true, categoria: cat, participantes: [], loading: false });
+                            }
+                          }} title="Ver participantes"><GroupIcon /></IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </TableContainer>

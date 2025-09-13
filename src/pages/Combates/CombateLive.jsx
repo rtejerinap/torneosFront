@@ -207,7 +207,7 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
   const mostrarBotonIniciar =
     (estadoCombate === 'esperando' ||
       estadoCombate === 'en_pausa' ||
-      estadoCombate === 'no iniciado' || // <-- si tu backend usa 'no_iniciado', cambiá esta línea
+      estadoCombate === 'no_iniciado' || // <-- corregido para coincidir con el backend
       estadoCombate === 'tiempo_extra') &&
     estadoCombate !== 'cerrado' &&
     puedeControlarReloj;
@@ -473,7 +473,7 @@ const CombateLive = ({ combateId, nombreRojo, nombreAzul }) => {
         {mostrarBotonIniciar && (
           <button
             onClick={
-              estadoCombate === 'en_pausa' || estadoCombate === 'no iniciado' // <-- cambiar si usás 'no_iniciado'
+              estadoCombate === 'en_pausa' || estadoCombate === 'no_iniciado' // <-- cambiar si usás 'no_iniciado'
                 ? reanudarCombate
                 : iniciarCombate
             }

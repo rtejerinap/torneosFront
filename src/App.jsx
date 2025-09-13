@@ -21,6 +21,7 @@ import ParticipantesPorCategoria from "./pages/Torneos/ParticipantesPorCategoria
 import MiInscripcion from "./pages/MiInscripcion";
 import ZonasManager from "./pages/ZonasManager";
 import Categorias from "./pages/Categorias";
+import TulLive from "./pages/Combates/TulLive";
 
 
 const App = () => {
@@ -55,9 +56,10 @@ const App = () => {
   <Route path="mi-inscripcion" element={<MiInscripcion />} />
   <Route path="categorias" element={<Categorias />} />
   <Route path="zonas" element={<ZonasManager />} />
+    <Route path="tul-live/:combateId" element={<TulLive combateId="..." nombreRojo="..." nombreAzul="..." />} />
   </Route>
-</Routes>
-
+  <Route path="/tul-live" element={<TulLive />} />
+    </Routes>
     </BrowserRouter>
   );
 };

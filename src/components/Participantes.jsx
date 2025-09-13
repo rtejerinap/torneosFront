@@ -380,6 +380,13 @@ const AdminParticipantes = () => {
   const totalACobrar = total * precio;
   const deuda = totalACobrar - totalCobrado;
 
+  const [busquedaApellido, setBusquedaApellido] = useState("");
+
+  // Filtra participantes por apellido
+  const participantesFiltrados = busquedaApellido.trim() === ""
+    ? participantes
+    : participantes.filter(p => (p.apellido || "").toLowerCase().includes(busquedaApellido.trim().toLowerCase()));
+
   const columnas = [
     {
       field: "nombre_apellido",
@@ -392,7 +399,7 @@ const AdminParticipantes = () => {
       },
     },
     { field: "documento", headerName: "Documento", width: 120 },
-    { field: "peso", headerName: "Peso (kg)", width: 90 },
+    { field: "peso", headerName: "Peso (kg)", width: 90, editable: true, type: "number" }, // editable
     {
       field: "edad",
       headerName: "Edad",
@@ -513,6 +520,24 @@ const AdminParticipantes = () => {
       ),
     },
   ];
+
+  // Handler para actualizar solo el peso
+  const handlePesoUpdate = async (newRow, oldRow) => {
+    console.log('handlePesoUpdate', { newRow, oldRow });
+    if (newRow.peso !== oldRow.peso) {
+      try {
+        const response = await axios.put(`${API_BASE}/participantes/${newRow.id}`, { peso: newRow.peso });
+        console.log('PUT response', response);
+        buscarParticipantes(); // refresca la tabla
+        return newRow;
+      } catch (err) {
+        console.error('PUT error', err);
+        alert("Error al actualizar el peso");
+        return oldRow;
+      }
+    }
+    return newRow;
+  };
 
   const handleEliminarParticipante = async () => {
     if (!participanteAEliminar) return;
@@ -700,11 +725,31 @@ const AdminParticipantes = () => {
             </Grid>
           </Box>
 
+          {/* Búsqueda por apellido */}
+          <Box sx={{ mb: 2 }}>
+            <TextField
+              label="Buscar por apellido"
+              variant="outlined"
+              size="small"
+              value={busquedaApellido}
+              onChange={e => setBusquedaApellido(e.target.value)}
+              sx={{ mb: 2, width: 250 }}
+            />
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setBusquedaApellido("")}
+              sx={{ ml: 1 }}
+            >
+              Limpiar
+            </Button>
+          </Box>
+
           {/* Grid */}
           <Paper sx={{ mb: 2 }}>
             <DataGrid
               autoHeight
-              rows={participantes}
+              rows={participantesFiltrados}
               columns={columnas}
               getRowId={(row) => row.id}
               // ✅ paginado MUI v5
@@ -713,6 +758,8 @@ const AdminParticipantes = () => {
               onPageSizeChange={(newSize) => setPageSize(Number(newSize))}
               pagination
               hideFooterSelectedRowCount
+              processRowUpdate={handlePesoUpdate}
+              experimentalFeatures={{ newEditingApi: true }}
             />
           </Paper>
 

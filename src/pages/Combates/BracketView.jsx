@@ -8,7 +8,7 @@ import axios from "axios";
 import "./BracketView.css";
 
 const MATCH_HEIGHT = 110; // Alto de la caja del combate + gap vertical
-const MATCH_WIDTH = 220;  // Ancho de la caja del combate
+const MATCH_WIDTH = 250;  // Ancho de la caja del combate
 const ROUND_GAP = 160;    // Espacio horizontal entre rondas (aumentado para mayor claridad)
 
 
@@ -114,9 +114,25 @@ const BracketView = ({ llaveId }) => {
     // Siguientes rondas: centrar entre padres
     for (let ronda = 1; ronda < combatesPorRondaSorted.length; ronda++) {
       const combates = combatesPorRondaSorted[ronda];
+      // Detectar si hay combate de tercer puesto en la última ronda
+      const esUltimaRonda = ronda === combatesPorRondaSorted.length - 1;
+      let tercerPuesto = null;
+      if (esUltimaRonda) {
+        tercerPuesto = combates.find(c => c.es_tercer_puesto);
+      }
       combates.forEach((combate, idx) => {
         const left = ronda * (MATCH_WIDTH + ROUND_GAP);
-        // Buscar todos los combates de la ronda anterior que apuntan a este
+        // Si es tercer puesto, lo ubicamos debajo del final
+        if (esUltimaRonda && combate.es_tercer_puesto) {
+          // Buscar el combate final
+          const final = combates.find(c => !c.es_tercer_puesto);
+          const finalPos = final ? newPositions[final.numero_combate] : null;
+          const top = finalPos ? finalPos.top + MATCH_HEIGHT + 32 : (idx * MATCH_HEIGHT);
+          newPositions[combate.numero_combate] = { top, left };
+          if (top + MATCH_HEIGHT > maxContainerHeight) maxContainerHeight = top + MATCH_HEIGHT;
+          return;
+        }
+        // Normal: centrar entre padres
         const parentCombates = Object.values(combatePorNumero).filter(
           p => p.siguiente_numero_combate === combate.numero_combate
         );
@@ -302,6 +318,49 @@ const BracketView = ({ llaveId }) => {
     pdf.save(`${llaveInfo?.nombre || 'bracket'}.pdf`);
   };
 
+  // Exportar PDF con fondo blanco en las llaves
+  const exportarPDF = async () => {
+    const bracketContainer = document.getElementById('bracket-container');
+    if (!bracketContainer) return;
+    // Guardar fondo original del contenedor
+    const originalBg = bracketContainer.style.background;
+    bracketContainer.style.background = '#fff';
+    // Guardar y cambiar fondo de todas las cajitas
+    const cajitas = bracketContainer.querySelectorAll('.cajita-bracket');
+    const fondosOriginales = [];
+    cajitas.forEach(cajita => {
+      fondosOriginales.push(cajita.style.background);
+      cajita.style.background = '#fff';
+    });
+    await new Promise(r => setTimeout(r, 100));
+    const canvas = await window.html2canvas(bracketContainer, { backgroundColor: '#fff' });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new window.jsPDF({ orientation: 'landscape' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+    pdf.save('llave.pdf');
+    // Restaurar fondo original del contenedor y cajitas
+    bracketContainer.style.background = originalBg;
+    cajitas.forEach((cajita, i) => {
+      cajita.style.background = fondosOriginales[i];
+    });
+  };
+
+  // Estilos para cajitas de participantes en la llave
+  const getBoxStyle = (color) => ({
+    background: '#eceaeaff', // fondo blanco puro
+    color: color === 'rojo' ? '#d32f2f' : color === 'azul' ? '#1976d2' : '#222',
+    border: '1px solid #eee',
+    borderRadius: 6,
+    padding: '6px 12px',
+    margin: '2px 0',
+    fontWeight: 'bold',
+    fontSize: '1rem',
+    boxShadow: 'none',
+    textAlign: 'center',
+  });
+
   // Responsive styles
   const isMobile = window.innerWidth < 600;
   // Layout: bracket ocupa todo el ancho en escritorio, centrado solo en móvil
@@ -360,7 +419,7 @@ const BracketView = ({ llaveId }) => {
       {isAdmin && puedeIntercambiar && (
         <div style={{ marginBottom: 12 }}>
           <b>Intercambio de participantes (primera ronda):</b>
-          <div style={{ fontSize: 14, color: '#aaa' }}>Seleccioná un participante de cada combate de la primera ronda y hacé clic en "Intercambiar participantes".</div>
+          <div style={{ fontSize: 14, color: '#242323ff' }}>Seleccioná un participante de cada combate de la primera ronda y hacé clic en "Intercambiar participantes".</div>
           <button
             disabled={selectedParticipants.length !== 2 || loadingSwap}
             onClick={intercambiarParticipantes}
@@ -379,10 +438,79 @@ const BracketView = ({ llaveId }) => {
           // Para selección cruzada
           const isSelectedRojo = selectedParticipants.find(sel => sel.combateId === c.id && sel.color === 'rojo');
           const isSelectedAzul = selectedParticipants.find(sel => sel.combateId === c.id && sel.color === 'azul');
+          // Si es tercer puesto, no mostrar líneas ni conexiones
+          if (c.es_tercer_puesto) {
+            return (
+              <div
+                key={c.id}
+                className={`bracket-match cajita-bracket tercer-puesto${isFirstRound && puedeIntercambiar ? ' bracket-match-selectable' : ''}`}
+                style={{
+                  position: 'absolute',
+                  top: `${pos.top}px`,
+                  left: `${pos.left}px`,
+                  width: `${MATCH_WIDTH}px`,
+                  height: `${MATCH_HEIGHT - 20}px`,
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'stretch',
+                  opacity: 1,
+                  fontSize: isMobile ? 13 : 16,
+                  boxShadow: isMobile ? '0 1px 4px rgba(0,0,0,0.10)' : '0 2px 8px rgba(0,0,0,0.15)',
+                  borderRadius: 8,
+                  background: '#fff',
+                  border: '2px dashed #d32f2f'
+                }}
+              >
+                <div className="match-number-wrapper" style={{
+                  minWidth: isMobile ? '28px' : '36px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRight: '1px solid #444',
+                  fontWeight: 700,
+                  fontSize: isMobile ? '1em' : '1.1em',
+                  color: '#d32f2f',
+                  background: 'rgba(236, 223, 223, 0.1)',
+                  padding: '4px 0 4px 8px',
+                  gap: 2
+                }}>
+                  {c.numero_combate}
+                  <span style={{ fontSize: 12, color: '#d32f2f', fontWeight: 700 }}>3er puesto</span>
+                </div>
+                <div className="match-content" style={{flex: 1, display: 'flex', flexDirection: 'column', position: 'relative'}}>
+                  <div
+                    className={`bracket-part`}
+                    style={{ borderRadius: 4, margin: 2, display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    {c.participante_rojo ? (
+                      <div style={{ color: '#d32f2f', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {c.participante_rojo.nombre} {c.participante_rojo.apellido}
+                        {c.ganador_participante_id === c.participante_rojo.id && c.ganador_participante_id != null ? <span title="Ganador" style={{ fontSize: isMobile ? 16 : 20 }}>🏆</span> : null}
+                      </div>
+                    ) : <div className="vacant">(Lugar vacante)</div>}
+                  </div>
+                  <div
+                    className={`bracket-part`}
+                    style={{ borderRadius: 4, margin: 2, display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    {c.participante_azul ? (
+                      <div style={{ color: '#1976d2', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {c.participante_azul.nombre} {c.participante_azul.apellido}
+                        {c.ganador_participante_id === c.participante_azul.id && c.ganador_participante_id != null ? <span title="Ganador" style={{ fontSize: isMobile ? 16 : 20 }}>🏆</span> : null}
+                      </div>
+                    ) : <div className="vacant">(Lugar vacante)</div>}
+                  </div>
+                  {c.bye && <div className="bye-text">BYE</div>}
+                </div>
+              </div>
+            );
+          }
+          // ...existing code for normal combates...
           return (
             <div
               key={c.id}
-              className={`bracket-match${isFirstRound && puedeIntercambiar ? ' bracket-match-selectable' : ''}`}
+              className={`bracket-match cajita-bracket${isFirstRound && puedeIntercambiar ? ' bracket-match-selectable' : ''}`}
               style={{
                 position: 'absolute',
                 top: `${pos.top}px`,
@@ -394,9 +522,9 @@ const BracketView = ({ llaveId }) => {
                 alignItems: 'stretch',
                 opacity: isFirstRound && puedeIntercambiar ? 1 : 0.85,
                 fontSize: isMobile ? 13 : 16,
-                boxShadow: isMobile ? '0 1px 4px rgba(0,0,0,0.10)' : '0 2px 8px rgba(0,0,0,0.15)',
+                boxShadow: isMobile ? '0 1px 4px rgba(0,0,0,0.10)' : '0 2px 8px rgba(241, 236, 236, 0.15)',
                 borderRadius: 8,
-                background: isMobile ? '#232323' : 'rgba(34,34,34,0.98)'
+                background: isMobile ? '#232323' : 'rgba(247, 247, 247, 0.98)'
               }}
             >
               <div className="match-number-wrapper" style={{
@@ -408,8 +536,8 @@ const BracketView = ({ llaveId }) => {
                 borderRight: '1px solid #444',
                 fontWeight: 700,
                 fontSize: isMobile ? '1em' : '1.1em',
-                color: '#aaa',
-                background: 'rgba(0,0,0,0.10)',
+                color: '#110e0eff',
+                background: 'rgba(236, 223, 223, 0.1)',
                 padding: '4px 0 4px 8px',
                 gap: 2
               }}>
@@ -427,7 +555,7 @@ const BracketView = ({ llaveId }) => {
                       if (url) window.open(url, '_blank');
                     }}
                   >
-                    <VisibilityIcon style={{ fontSize: isMobile ? 18 : 24, color: '#444' }} />
+                    <VisibilityIcon style={{ fontSize: isMobile ? 18 : 24, color: '#302d2dff' }} />
                   </button>
                 )}
                 {c.numero_combate}

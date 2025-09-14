@@ -1,4 +1,3 @@
-
 import { Checkbox, CircularProgress, TextField, Button, MenuItem, Grid, Typography, Box, Divider, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText } from '@mui/material';
 import dayjs from 'dayjs';
 
@@ -131,7 +130,8 @@ const Categorias = () => {
       ...form,
       nombre: nombreAuto,
       graduacion_desde_index: indiceGraduacionMin,
-      graduacion_hasta_index: indiceGraduacionMax
+      graduacion_hasta_index: indiceGraduacionMax,
+      tiene_tercer_puesto: !!form.tiene_tercer_puesto
     };
     try {
       const res = await fetch(`${API_BASE}/api/categorias`, {
@@ -237,6 +237,16 @@ const Categorias = () => {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField type="number" label="Tiempo extra (segundos)" name="tiempo_extra" value={form.tiempo_extra} onChange={handleChange} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Box display="flex" alignItems="center">
+                  <Checkbox
+                    checked={!!form.tiene_tercer_puesto}
+                    onChange={e => setForm(f => ({ ...f, tiene_tercer_puesto: e.target.checked }))}
+                    color="primary"
+                  />
+                  <span>¿Hay tercer puesto?</span>
+                </Box>
               </Grid>
               <Grid item xs={12}>
                 <TextField select label="Torneo" name="id_torneo" value={form.id_torneo} onChange={handleChange} sx={fieldStyle} fullWidth>
@@ -374,6 +384,48 @@ const Categorias = () => {
       <Dialog open={modalParticipantes.open} onClose={() => setModalParticipantes({ open: false, categoria: null, participantes: [], loading: false })} maxWidth="sm" fullWidth>
         <DialogTitle>Participantes de la Categoría</DialogTitle>
         <DialogContent dividers>
+          <Box mb={2} display="flex" justifyContent="flex-end">
+            <Button
+              variant="outlined"
+              color="primary"
+              disabled={modalParticipantes.loading || modalParticipantes.participantes.length === 0}
+              onClick={() => {
+                import('jspdf').then(jsPDFModule => {
+                  const jsPDF = jsPDFModule.default;
+                  const doc = new jsPDF();
+                  const categoria = modalParticipantes.categoria?.nombre || '';
+                  const cantidad = modalParticipantes.participantes.length;
+                  doc.setFontSize(16);
+                  doc.text('Participantes de la Categoría', 15, 20);
+                  doc.setFontSize(14);
+                  doc.text(`${categoria}`, 15, 28);
+                  doc.setFontSize(12);
+                  doc.text(`Cantidad: ${cantidad}`, 15, 36);
+                  // Encabezados de tabla
+                  doc.setFontSize(11);
+                  doc.text('Nombre', 15, 40);
+                  doc.text('Edad', 80, 40);
+                  doc.text('Peso', 110, 40);
+                  doc.text('Cinturón', 140, 40);
+                  let y = 48;
+                  modalParticipantes.participantes.forEach((p, i) => {
+                    doc.text(`${p.apellido}, ${p.nombre}`, 15, y);
+                    doc.text(`${calcularEdad(p.fechaNacimiento)}`, 80, y);
+                    doc.text(`${p.peso} kg`, 110, y);
+                    doc.text(`${p.cinturon}`, 140, y);
+                    y += 8;
+                    if (y > 280) {
+                      doc.addPage();
+                      y = 20;
+                    }
+                  });
+                  doc.save(`participantes_${categoria}.pdf`);
+                });
+              }}
+            >
+              Exportar PDF
+            </Button>
+          </Box>
           {modalParticipantes.loading ? (
             <Box display="flex" justifyContent="center" mt={2}><CircularProgress /></Box>
           ) : (
@@ -621,26 +673,67 @@ const Categorias = () => {
               <Grid item xs={12} sm={6}>
                 <TextField label="Tiempo extra (segundos)" type="number" name="tiempo_extra" value={editForm.tiempo_extra} onChange={e => setEditForm(f => ({ ...f, tiempo_extra: parseInt(e.target.value) }))} fullWidth />
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <Box display="flex" alignItems="center">
+                  <Checkbox
+                    checked={!!editForm.tiene_tercer_puesto}
+                    onChange={e => setEditForm(f => ({ ...f, tiene_tercer_puesto: e.target.checked }))
+                    }
+                    color="primary"
+                  />
+                  <span>¿Hay tercer puesto?</span>
+                </Box>
+              </Grid>
             </Grid>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setModal({ open: false })} disabled={editLoading}>Cancelar</Button>
-          <Button variant="contained" disabled={editLoading} onClick={async () => {
+          <Button onClick={async () => {
             setEditLoading(true);
             try {
-              await axios.put(`${API_BASE}/api/categorias/${editForm.id}`, editForm);
-              setCategorias(categorias.map(c => c.id === editForm.id ? { ...editForm } : c));
-              setModal({ open: false });
-            } catch (e) {
-              alert('Error al editar');
+              const edadSel = rangoEdades.find(r => r.min === editForm.edad_min);
+              const pesoSel = rangoPesos.find(r => r.min === editForm.peso_minimo);
+              const nombreAuto = `${editForm.sexo} | ${edadSel?.label} | ${pesoSel?.label} | ${editForm.graduacion_desde} a ${editForm.graduacion_hasta}`;
+              const indiceGraduacionMin = ORDEN_CINTURONES.findIndex(g => g === editForm.graduacion_desde);
+              const indiceGraduacionMax = ORDEN_CINTURONES.findIndex(g => g === editForm.graduacion_hasta);
+              const payload = {
+                ...editForm,
+                nombre: nombreAuto,
+                graduacion_desde_index: indiceGraduacionMin,
+                graduacion_hasta_index: indiceGraduacionMax
+              };
+              const res = await fetch(`${API_BASE}/api/categorias/${editForm.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              const contentType = res.headers.get("content-type");
+              if (!res.ok || !contentType?.includes("application/json")) {
+                const text = await res.text();
+                console.error("Respuesta no válida:", text);
+                alert("Error del servidor al editar la categoría.");
+                return;
+              }
+              const result = await res.json();
+              if (res.ok) {
+                alert('Categoría editada con éxito');
+                setModal({ open: false });
+                setEditForm(null);
+              } else {
+                alert(result.error || 'Error al editar categoría');
+              }
+            } catch (err) {
+              console.error('Error al enviar datos:', err);
+              alert('Error al enviar datos');
             } finally {
               setEditLoading(false);
             }
-          }}>Guardar</Button>
+          }} variant="contained" color="primary" disabled={editLoading}>
+            {editLoading ? <CircularProgress size={24} /> : 'Guardar cambios'}
+          </Button>
         </DialogActions>
       </Dialog>
-      
     </Box>
   );
 };

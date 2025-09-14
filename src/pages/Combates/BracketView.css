@@ -29,10 +29,10 @@
 }
 .bracket-wrapper {
   padding: 40px;
-  background-color: #1e1e1e;
+  background-color: #f1ebeb;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   overflow: auto;
-  color: #f0f0f0;
+  color: #141414;
 }
 
  .bracket-dynamic-container {
@@ -53,9 +53,9 @@
 .bracket-match {
   display: flex;
   flex-direction: row;
-  background-color: #2d2d2d;
+  background-color: #a79e9e;
   border-radius: 3px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(240, 232, 232, 0.2);
   border: 1px solid #444;
   z-index: 2;
 }
@@ -65,11 +65,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-right: 1px solid #444;
+  border-right: 1px solid #fff;
   font-weight: 700;
   font-size: 1.1em;
   color: #aaa;
-  background: rgba(0,0,0,0.10);
+  background: rgba(192, 187, 187, 0.1);
 }
 
 .match-content {
@@ -93,16 +93,16 @@
 
 .bracket-part .apellido {
   font-size: 0.85em;
-  color: #aaa;
+  color: #fff;
   margin-top: 2px;
 }
 
 .bracket-part:first-child {
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid #fff;
 }
 
 .vacant {
-  color: #666;
+  color: #1a1919;
   font-style: italic;
 }
 
@@ -111,8 +111,11 @@
   bottom: -20px;
   left: 50%;
   transform: translateX(-50%);
-  color: #888;
+  color: #181717;
+.cajita-bracket {
+  background: #fff !important;
+}
   font-size: 0.8em;
-  background-color: #1e1e1e;
+  background-color: #272626;
   padding: 0 5px;
 }
